@@ -1,0 +1,30 @@
+{
+	"RemapUnityFiles": 
+	{
+		"Module.VrCore.cpp.obj": [
+			"UVrCoreHandManager.cpp.obj",
+			"VrCoreCharacter.cpp.obj",
+			"VrCoreHandAnimInterface.cpp.obj",
+			"VrCoreChairInterface.cpp.obj",
+			"VrCoreSimpleChair.cpp.obj",
+			"VrCoreSittableInterface.cpp.obj",
+			"VrCoreInteractable.cpp.obj",
+			"VrCoreInteractableInterface.cpp.obj",
+			"VrCoreSimpleSwitch.cpp.obj",
+			"VrCore.cpp.obj"
+		],
+		"Module.VrCore.gen.cpp.obj": [
+			"UVrCoreHandManager.gen.cpp.obj",
+			"VrCore.init.gen.cpp.obj",
+			"VrCoreChairInterface.gen.cpp.obj",
+			"VrCoreCharacter.gen.cpp.obj",
+			"VrCoreHandAnimInterface.gen.cpp.obj",
+			"VrCoreInteractable.gen.cpp.obj",
+			"VrCoreInteractableInterface.gen.cpp.obj",
+			"VrCoreSimpleChair.gen.cpp.obj",
+			"VrCoreSimpleSwitch.gen.cpp.obj",
+			"VrCoreSittableInterface.gen.cpp.obj",
+			"VrCoreTypes.gen.cpp.obj"
+		]
+	}
+}
