@@ -14,4 +14,4 @@ This project depends on [VRExpansion Plugin](https://github.com/mordentral/VRExp
 There are two ways to install the contents of the plugin to your project.
 
 1. (Easy) Clone this project into your project's plugins folder (example: `./YourProject/Plugins/VrCore/VrCore.uplugin`)
-2. Install this as a git submodule. `git submodule add https://github.com/hvent90/vrcore
+2. Install this as a git submodule. `git submodule add https://github.com/hvent90/vrcore`
