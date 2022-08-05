@@ -13,5 +13,12 @@ This project depends on [VRExpansion Plugin](https://github.com/mordentral/VRExp
 
 There are two ways to install the contents of the plugin to your project.
 
-1. (Easy) Clone this project into your project's plugins folder (example: `./YourProject/Plugins/VrCore/VrCore.uplugin`)
-2. Install this as a git submodule. `git submodule add https://github.com/hvent90/vrcore`
+The quick way is to clone this project into your project's plugins folder (example: `./YourProject/Plugins/VrCore/VrCore.uplugin`).
+
+The alternative way is to install this as a git submodule. Run this command from your project root:
+```sh
+git submodule add https://github.com/hvent90/UE5-VR-Core.git ./Plugins/Vr`
+cd ./Plugins/Vr
+git submodule init
+git submodule update
+```
