@@ -625,7 +625,6 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	bool Overlap = World->OverlapMultiByChannel(Overlaps,
 		MotionController->GetComponentLocation(), FQuat(),
 		GripCollisionChannel, FCollisionShape::MakeSphere(GripRadius));
-	DrawDebugSphere(GetWorld(), MotionController->GetComponentLocation(), GripRadius, 12, FColor::Blue, false, .02, ESceneDepthPriorityGroup::SDPG_World, 1);
 	if (!Overlap)
 	{
 		return false;
