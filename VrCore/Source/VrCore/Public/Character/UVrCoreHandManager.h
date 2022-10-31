@@ -93,36 +93,43 @@ public:
 	// Grip
 	bool AttemptGrip(UGripMotionControllerComponent* MotionController);
 	bool AttemptGripObject(UGripMotionControllerComponent* MotionController, UObject* Object, FTransform WorldTransform);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_AttemptGripObject(UGripMotionControllerComponent* MotionController, UObject* Object, FTransform WorldTransform);
 
 	// Grip Release
 	void AttemptRelease(UGripMotionControllerComponent* MotionController);
 	void AttemptReleaseObject(UGripMotionControllerComponent* MotionController, UObject* Object);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_AttemptReleaseObject(UGripMotionControllerComponent* MotionController, UObject* Object);
 
 	/** Other Controls */
 
 	// Trigger
 	void HandleTrigger(UGripMotionControllerComponent* MotionController, bool bPressed);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandleTrigger(UGripMotionControllerComponent* MotionController, bool bPressed);
 
 	// Face Buttons
 	void HandlePrimaryButton(UGripMotionControllerComponent* MotionController, bool bPressed);
 	void HandleSecondaryButton(UGripMotionControllerComponent* MotionController, bool bPressed);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandlePrimaryButton(UGripMotionControllerComponent* MotionController, bool bPressed);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandleSecondaryButton(UGripMotionControllerComponent* MotionController, bool bPressed);
 
 	// Thumbstick
 	void HandleThumbstickPress(UGripMotionControllerComponent* MotionController, bool bPressed);
-	void HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	
+	/**
+	 * @brief 
+	 * @return Returns true if the gripped object's usage of the thumbstick axis
+	 * should prevent the player from moving/turning. Example: using the thumbstick to
+	 * navigate a menu.
+	 */
+	bool HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y);
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandleThumbstickPress(UGripMotionControllerComponent* MotionController, bool bPressed);
-	UFUNCTION(Server, Unreliable, WithValidation)
+	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y);
 	
 protected:
@@ -154,14 +161,15 @@ protected:
 
 	void OnGrippedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, const FBPActorGripInformation& GripInfo);
 	void OnDroppedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, const FBPActorGripInformation& GripInfo);
+	
+	float ThumbstickResetThreshold = .15;
+	float ThumbstickImpulseActivationThreshold = .5;
+
 private:
+	TMap<EControllerHand, bool> ImpulseActivations;
+
 	inline bool IsServer() const
 	{
-		if (GEngine != nullptr && GWorld != nullptr)
-		{
-			return GEngine->GetNetMode(GWorld) < NM_Client;
-		}
-
-		return false;
+		return GetOwner()->HasAuthority();
 	}
 };

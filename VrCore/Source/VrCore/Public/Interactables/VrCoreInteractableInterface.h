@@ -13,6 +13,8 @@ class UVrCoreInteractableInterface : public UInterface
 	GENERATED_BODY()
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickImpulse, FVector2D, Direction);
+
 /**
  * 
  */
@@ -43,9 +45,24 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	void SendThumbstickPress(bool Pressed);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
-	void SendThumbstickAxis(float X, float Y);
+	/**
+	 * @return Returns true if it should prevent moving/turning 
+	 */
+	UFUNCTION(Category = "VrCoreInteractableInterface")
+	virtual void SendThumbstickAxis(float X, float Y);
+
+	UFUNCTION(BlueprintNativeEvent, Category = "VrCoreInteractableInterface")
+	void SendThumbstickImpulse(FVector2D Direction);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "VrCoreInteractableInterface")
+	void K2_SendThumbstickAxis(float X, float Y);
+	
+	UFUNCTION(BlueprintImplementableEvent, Category = "VrCoreInteractableInterface")
+	void K2_SendThumbstickAxisImpulse(FVector2D Direction);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	bool IsInteractableWithoutGrip();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
+	bool ThumbstickConsumesMovement();
 };

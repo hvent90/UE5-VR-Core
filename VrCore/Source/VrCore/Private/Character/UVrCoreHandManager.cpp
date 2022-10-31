@@ -3,6 +3,8 @@
 
 #include "Character/UVrCoreHandManager.h"
 
+#include <string>
+
 #include "GripMotionControllerComponent.h"
 #include "Character/VrCoreHandAnimInterface.h"
 #include "GameFramework/GameSession.h"
@@ -145,6 +147,13 @@ void UVrCoreHandManager::RegisterMotionControllers(UGripMotionControllerComponen
 	
 	LeftMeshRelativeTransform = LeftMesh->GetRelativeTransform();
 	RightMeshRelativeTransform = RightMesh->GetRelativeTransform();
+
+	EControllerHand LeftHand;
+	EControllerHand RightHand;
+	LeftMotionController->GetHandType(LeftHand);
+	RightMotionController->GetHandType(RightHand);
+	ImpulseActivations.Add(LeftHand, false);
+	ImpulseActivations.Add(RightHand, false);
 }
 
 void UVrCoreHandManager::OnGrippedLeft(const FBPActorGripInformation& GripInfo)
@@ -380,7 +389,7 @@ void UVrCoreHandManager::HandleThumbstickPress(UGripMotionControllerComponent* M
 	}
 }
 
-void UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y)
+bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y)
 {
 	if (!IsServer())
 	{
@@ -388,6 +397,69 @@ void UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 	}
 
 	// Handle Animation
+
+	// Prepare Impulse values
+	bool bFireImpulse = false;
+	FVector2D ImpulseDirection;
+	EControllerHand Hand;
+	MotionController->GetHandType(Hand);
+	
+	GEngine->AddOnScreenDebugMessage(-1, .1, FColor::Red, FString::Printf(TEXT("X: %f, Y: %f"), X, Y));
+
+	// if (ImpulseActivations[Hand])
+	// {
+	// 	if (FMath::Abs(Y) < 0.1)
+	// 	{
+	// 		ImpulseActivations[Hand] = false;
+	// 	}
+	// }
+	// else
+	// {
+	// 	if (FMath::Abs(Y) > 0.5)
+	// 	{
+	// 		GEngine->AddOnScreenDebugMessage(-1, 1, FColor::Red, TEXT("Impulse"));
+	//
+	// 		ImpulseActivations[Hand] = true;
+	// 		bFireImpulse = true;
+	// 		
+	// 		ImpulseDirection.Y = 1;
+	// 		if (Y < 0)
+	// 		{
+	// 			ImpulseDirection.Y = -1;
+	// 		}
+	// 	}
+	// }
+	//
+	if (ImpulseActivations[Hand])
+	{
+		if (abs(X) < ThumbstickResetThreshold && abs(Y) < ThumbstickResetThreshold)
+		{
+			ImpulseActivations[Hand] = false;
+		}
+	} else
+	{
+		if (abs(X) > ThumbstickImpulseActivationThreshold)
+		{
+			ImpulseActivations[Hand] = true;
+			bFireImpulse = true;
+			ImpulseDirection.X = 1;
+			if (X < 0)
+			{
+				ImpulseDirection.X = -1;
+			}
+		}
+	
+		if (abs(Y) > ThumbstickImpulseActivationThreshold)
+		{
+			ImpulseActivations[Hand] = true;
+			bFireImpulse = true;
+			ImpulseDirection.Y = 1;
+			if (Y < 0)
+			{
+				ImpulseDirection.Y = -1;
+			}
+		}	
+	}
 
 	// Send input to gripped objects
 	TArray<UObject*> GrippedObjects;
@@ -398,7 +470,13 @@ void UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 		IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(GrippedObject);
 		if (InteractableInterface)
 		{
-			InteractableInterface->Execute_SendThumbstickAxis(GrippedObject, X, Y);
+			if (bFireImpulse)
+			{
+				InteractableInterface->Execute_SendThumbstickImpulse(GrippedObject, ImpulseDirection);	
+			}
+			
+			InteractableInterface->SendThumbstickAxis(X, Y);
+			return InteractableInterface->Execute_ThumbstickConsumesMovement(GrippedObject);
 		} else
 		{
 			// Check if the owning actor is implementing IVrCoreInteractableInterface
@@ -418,10 +496,18 @@ void UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 			InteractableInterface = Cast<IVrCoreInteractableInterface>(Actor);
 			if (InteractableInterface)
 			{
-				InteractableInterface->Execute_SendThumbstickAxis(Actor, X, Y);
+				if (bFireImpulse)
+				{
+					InteractableInterface->Execute_SendThumbstickImpulse(Actor, ImpulseDirection);	
+				}
+				
+				InteractableInterface->SendThumbstickAxis(X, Y);
+				return InteractableInterface->Execute_ThumbstickConsumesMovement(Actor);
 			}
 		}
 	}
+
+	return false;
 }
 
 void UVrCoreHandManager::Server_HandleThumbstickPress_Implementation(UGripMotionControllerComponent* MotionController,
@@ -773,7 +859,8 @@ bool UVrCoreHandManager::AttemptGripObject(UGripMotionControllerComponent* Motio
 	}
 
 	// Check if server or client is authoritative on the grippable objective
-	if (World->IsNetMode(ENetMode::NM_Client))
+	if (!GetOwner()->HasAuthority())
+	// if (World->IsNetMode(ENetMode::NM_Client))
 	{
 		const EGripMovementReplicationSettings ReplicationSettings = GripInterface->Execute_GripMovementReplicationType(Object);
 		if (ReplicationSettings != EGripMovementReplicationSettings::ClientSide_Authoritive &&
@@ -846,7 +933,8 @@ void UVrCoreHandManager::AttemptReleaseObject(UGripMotionControllerComponent* Mo
 	}
 
 	// Check if server or client is authoritative on the grippable objective
-	if (World->IsNetMode(ENetMode::NM_Client))
+	if (!GetOwner()->HasAuthority())
+	// if (World->IsNetMode(ENetMode::NM_Client))
 	{
 		const EGripMovementReplicationSettings ReplicationSettings = GripInterface->Execute_GripMovementReplicationType(Object);
 		if (ReplicationSettings != EGripMovementReplicationSettings::ClientSide_Authoritive &&

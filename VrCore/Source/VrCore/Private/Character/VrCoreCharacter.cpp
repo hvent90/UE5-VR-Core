@@ -124,16 +124,84 @@ void AVrCoreCharacter::OnThumbstickPressRight()
 
 void AVrCoreCharacter::OnThumbstickAxisXLeft(float Value)
 {
-	OnThumbstickAxisX(EControllerHand::Left, Value);
+	OnThumbstickAxis(EControllerHand::Left, Value, GetInputAxisValue("VrCore_ThumbstickAxisYLeft"));
+	// OnThumbstickAxisX(EControllerHand::Left, Value);
 }
 
 void AVrCoreCharacter::OnThumbstickAxisXRight(float Value)
 {
-	OnThumbstickAxisX(EControllerHand::Right, Value);
+	OnThumbstickAxis(EControllerHand::Right, Value, GetInputAxisValue("VrCore_ThumbstickAxisYRight"));
+	// OnThumbstickAxisX(EControllerHand::Right, Value);
+}
+
+void AVrCoreCharacter::OnThumbstickAxis(EControllerHand Hand, float X, float Y)
+{
+	// if (FMath::IsNearlyZero(X) && FMath::IsNearlyZero(Y))
+	// {
+	// 	return;
+	// }
+	
+	UGripMotionControllerComponent* MotionController = nullptr;
+	if (Hand == EControllerHand::Left)
+	{
+		MotionController = LeftMotionController;	
+	} else if (Hand == EControllerHand::Right)
+	{
+		MotionController = RightMotionController;
+	}
+	
+	/**
+	 * 1. User has gripped object
+	 * 2. Gripped object accepts thumbstick input
+	 * 3. Usage of gripped object's thumbstick input should prevent movement
+	 */
+	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, X, Y))
+	{
+		return;
+	}
+	
+	if (!IsSeated())
+	{
+		if (TranslateHand == Hand)
+		{
+			Translate(X, Y);
+		}
+		
+		if (TurnHand == Hand)
+		{
+			Turn(X);
+		}
+
+		return;
+	}
 }
 
 void AVrCoreCharacter::OnThumbstickAxisX(EControllerHand Hand, float Value)
 {
+	if (FMath::IsNearlyZero(Value, .01))
+	{
+		return;
+	}
+	
+	UGripMotionControllerComponent* MotionController = nullptr;
+	if (Hand == EControllerHand::Left)
+	{
+		MotionController = LeftMotionController;	
+	} else if (Hand == EControllerHand::Right)
+	{
+		MotionController = RightMotionController;
+	}
+	
+	/**
+	 * 1. User has gripped object
+	 * 2. Gripped object accepts thumbstick input
+	 * 3. Usage of gripped object's thumbstick input should prevent movement
+	 */
+	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, Value, 0))
+	{
+		return;
+	}
+	
 	if (!IsSeated())
 	{
 		if (TranslateHand == Hand)
@@ -148,8 +216,28 @@ void AVrCoreCharacter::OnThumbstickAxisX(EControllerHand Hand, float Value)
 
 		return;
 	}
+}
 
-	UGripMotionControllerComponent* MotionController;
+void AVrCoreCharacter::OnThumbstickAxisYLeft(float Value)
+{
+	OnThumbstickAxis(EControllerHand::Left, GetInputAxisValue("VrCore_ThumbstickAxisXLeft"), Value);
+	// OnThumbstickAxisY(EControllerHand::Left, Value);
+}
+
+void AVrCoreCharacter::OnThumbstickAxisYRight(float Value)
+{
+	OnThumbstickAxis(EControllerHand::Right, GetInputAxisValue("VrCore_ThumbstickAxisXRight"), Value);
+	// OnThumbstickAxisY(EControllerHand::Right, Value);
+}
+
+void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
+{
+	if (FMath::IsNearlyZero(Value, .01))
+	{
+		return;
+	}
+	
+	UGripMotionControllerComponent* MotionController = nullptr;
 	if (Hand == EControllerHand::Left)
 	{
 		MotionController = LeftMotionController;	
@@ -157,21 +245,17 @@ void AVrCoreCharacter::OnThumbstickAxisX(EControllerHand Hand, float Value)
 	{
 		MotionController = RightMotionController;
 	}
+
+	/**
+	 * 1. User has gripped object
+	 * 2. Gripped object accepts thumbstick input
+	 * 3. Usage of gripped object's thumbstick input should prevent movement
+	 */
+	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, 0, Value))
+	{
+		return;
+	}
 	
-}
-
-void AVrCoreCharacter::OnThumbstickAxisYLeft(float Value)
-{
-	OnThumbstickAxisY(EControllerHand::Left, Value);
-}
-
-void AVrCoreCharacter::OnThumbstickAxisYRight(float Value)
-{
-	OnThumbstickAxisY(EControllerHand::Right, Value);
-}
-
-void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
-{
 	if (!IsSeated())
 	{
 		if (TranslateHand == Hand)
@@ -187,11 +271,6 @@ void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
 	} else if (Hand == EControllerHand::Right)
 	{
 		RightMotionController->GetGrippedObjects(GrippedObjects);
-	}
-	
-	if (GrippedObjects.Num() > 0)
-	{
-		// Send thumbstick input to gripped object
 	}
 }
 

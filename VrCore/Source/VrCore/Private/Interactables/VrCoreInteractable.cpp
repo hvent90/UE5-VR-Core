@@ -50,7 +50,10 @@ void AVrCoreInteractable::Highlight_Implementation(bool Visible)
 
 	for (UStaticMeshComponent* Mesh : HighlightedMeshes)
 	{
-		Mesh->SetVisibility(Visible && bUseSeparateMeshesForHighlighting);
+		if (IsValid(Mesh))
+		{
+			Mesh->SetVisibility(Visible && bUseSeparateMeshesForHighlighting);
+		}
 	}
 }
 

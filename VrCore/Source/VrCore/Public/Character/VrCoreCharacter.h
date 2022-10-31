@@ -17,9 +17,9 @@ class VRCORE_API AVrCoreCharacter : public AVRCharacter, public IVrCoreSittableI
 {
 	GENERATED_BODY()
 
-	AVrCoreCharacter();
-
 public:
+	AVrCoreCharacter();
+	
 	virtual void Tick(float DeltaSeconds) override;
 	
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -41,6 +41,7 @@ public:
 	void OnThumbstickPressRight();
 	void OnThumbstickAxisXLeft(float Value);
 	void OnThumbstickAxisXRight(float Value);
+	void OnThumbstickAxis(EControllerHand Hand, float X, float Y);
 	void OnThumbstickAxisX(EControllerHand Hand, float Value);
 	void OnThumbstickAxisYLeft(float Value);
 	void OnThumbstickAxisYRight(float Value);
