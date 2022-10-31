@@ -1,3 +1,4 @@
 [submodule "VRExpansionPlugin"]
 	path = VRExpansionPlugin
 	url = https://github.com/mordentral/VRExpansionPlugin
+        branch = 5.1-Preview
