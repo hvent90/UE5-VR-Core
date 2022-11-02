@@ -1,9 +1,0 @@
-.hg/
-binaries/
-deriveddatacache/
-.vs/
-build/
-intermediate/
-PACKPLUGIN/
-saved/
-*.orig
