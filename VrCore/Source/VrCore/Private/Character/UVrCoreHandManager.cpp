@@ -403,8 +403,6 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 	FVector2D ImpulseDirection;
 	EControllerHand Hand;
 	MotionController->GetHandType(Hand);
-	
-	GEngine->AddOnScreenDebugMessage(-1, .1, FColor::Red, FString::Printf(TEXT("X: %f, Y: %f"), X, Y));
 
 	// if (ImpulseActivations[Hand])
 	// {
