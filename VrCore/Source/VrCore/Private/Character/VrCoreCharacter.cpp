@@ -50,7 +50,7 @@ void AVrCoreCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	
 	PlayerInputComponent->BindAction("VrCore_ThumbstickPressLeft", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnThumbstickPressLeft);
 	PlayerInputComponent->BindAction("VrCore_ThumbstickPressRight", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnThumbstickPressRight);
-	//
+	
 	PlayerInputComponent->BindAxis("VrCore_ThumbstickAxisXLeft", this, &AVrCoreCharacter::OnThumbstickAxisXLeft);
 	PlayerInputComponent->BindAxis("VrCore_ThumbstickAxisXRight", this, &AVrCoreCharacter::OnThumbstickAxisXRight);
 	

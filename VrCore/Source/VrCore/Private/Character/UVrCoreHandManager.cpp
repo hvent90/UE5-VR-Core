@@ -201,7 +201,7 @@ void UVrCoreHandManager::OnDroppedObject(UGripMotionControllerComponent* MotionC
 
 	// Clear gripped pose
 	UAnimInstance* AnimInstance = Mesh->GetAnimInstance();
-	if (AnimInstance->Implements<UVrCoreHandAnimInterface>())
+	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
 	{
 		IVrCoreHandAnimInterface::Execute_ClearPose(AnimInstance);
 	}
@@ -465,17 +465,17 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 	for (UObject* GrippedObject : GrippedObjects)
 	{
 		// Check if the gripped object implements IVrCoreInteractableInterface
-		IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(GrippedObject);
-		if (InteractableInterface)
+		if (GrippedObject->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
 		{
 			if (bFireImpulse)
 			{
-				InteractableInterface->Execute_SendThumbstickImpulse(GrippedObject, ImpulseDirection);	
+				IVrCoreInteractableInterface::Execute_SendThumbstickImpulse(GrippedObject, ImpulseDirection);
 			}
-			
-			InteractableInterface->SendThumbstickAxis(X, Y);
-			return InteractableInterface->Execute_ThumbstickConsumesMovement(GrippedObject);
-		} else
+
+			IVrCoreInteractableInterface::Execute_K2_SendThumbstickAxis(GrippedObject, X, Y);
+			return IVrCoreInteractableInterface::Execute_ThumbstickConsumesMovement(GrippedObject);
+		}
+		else
 		{
 			// Check if the owning actor is implementing IVrCoreInteractableInterface
 			AActor* Actor = Cast<AActor>(GrippedObject);
@@ -490,17 +490,16 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 			{
 				continue;
 			}
-			
-			InteractableInterface = Cast<IVrCoreInteractableInterface>(Actor);
-			if (InteractableInterface)
+
+			if (Actor->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
 			{
 				if (bFireImpulse)
 				{
-					InteractableInterface->Execute_SendThumbstickImpulse(Actor, ImpulseDirection);	
+					IVrCoreInteractableInterface::Execute_SendThumbstickImpulse(Actor, ImpulseDirection);
 				}
 				
-				InteractableInterface->SendThumbstickAxis(X, Y);
-				return InteractableInterface->Execute_ThumbstickConsumesMovement(Actor);
+				IVrCoreInteractableInterface::Execute_K2_SendThumbstickAxis(Actor, X, Y);
+				return IVrCoreInteractableInterface::Execute_ThumbstickConsumesMovement(Actor);	
 			}
 		}
 	}
