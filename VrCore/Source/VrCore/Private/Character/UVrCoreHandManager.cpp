@@ -9,6 +9,7 @@
 #include "Character/VrCoreHandAnimInterface.h"
 #include "GameFramework/GameSession.h"
 #include "Grippables/HandSocketComponent.h"
+#include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Interactables/VrCoreInteractableInterface.h"
 
 void FHandInteractables::AddInteractable(FHandInteractable Interactable)
@@ -650,10 +651,11 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(GetOwner());
+	Params.bDebugQuery = bDebugGripTrace;
 
 	// Find objects in front of hand
 	TArray<FHitResult> Hits;
-	bool Hit = World->LineTraceMultiByChannel(Hits,
+	const bool Hit = World->LineTraceMultiByChannel(Hits,
 		MotionController->GetComponentLocation(),
 		MotionController->GetComponentLocation() + MotionController->GetForwardVector() * GripTraceLength,
 		ECollisionChannel::ECC_Visibility, Params);
@@ -667,25 +669,27 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	for (FHitResult HitResult : Hits)
 	{
 		AActor* Actor = HitResult.GetActor();
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
 		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
 		{
-			Interactables.Add(FHandInteractable(Actor, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
+			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
 		}
 
 		if (Actor && Actor->Implements<UVRGripInterface>())
 		{
-			Grippables.Add(FHandInteractable(Actor, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
+			Grippables.Add(FHandInteractable(Actor, StaticMeshComponent, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
 		}
 
-		UPrimitiveComponent* Component = HitResult.GetComponent(); 
+		UPrimitiveComponent* Component = HitResult.GetComponent();
+		StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 		if (Component && Component->Implements<UVrCoreInteractableInterface>())
 		{
-			Interactables.Add(FHandInteractable(Component, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
+			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
 		}
 
 		if (Component && Component->Implements<UVRGripInterface>())
 		{
-			Grippables.Add(FHandInteractable(Component, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
+			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
 		}
 	}
 
@@ -703,11 +707,14 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 		return false;
 	}
 
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(GetOwner());
+	Params.bDebugQuery = bDebugGripRadius;
 	
 	TArray<FOverlapResult> Overlaps;
-	bool Overlap = World->OverlapMultiByChannel(Overlaps,
-		MotionController->GetComponentLocation(), FQuat(),
-		GripCollisionChannel, FCollisionShape::MakeSphere(GripRadius));
+	const bool Overlap = World->OverlapMultiByChannel(Overlaps,
+	                                                  MotionController->GetComponentLocation(), FQuat(),
+	                                                  GripCollisionChannel, FCollisionShape::MakeSphere(GripRadius), Params);
 	if (!Overlap)
 	{
 		return false;
@@ -717,29 +724,31 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	for (FOverlapResult OverlapResult : Overlaps)
 	{
 		AActor* Actor = OverlapResult.GetActor();
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
 		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
 		{
 			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Actor, Distance, Actor->GetActorTransform()));
+			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 		}
 
 		if (Actor && Actor->Implements<UVRGripInterface>())
 		{
 			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Actor, Distance, Actor->GetActorTransform()));
+			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 		}
 
 		UPrimitiveComponent* Component = OverlapResult.GetComponent();
+		StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 		if (Component && Component->Implements<UVrCoreInteractableInterface>())
 		{
 			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Component, Distance, Component->GetComponentTransform()));
+			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
 		}
 		
 		if (Component && Component->Implements<UVRGripInterface>())
 		{
 			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
-			Grippables.Add(FHandInteractable(Component, Distance, Component->GetComponentTransform()));
+			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
 		}
 	}
 
@@ -760,6 +769,29 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			if (InteractableInterface)
 			{
 				InteractableInterface->Execute_Highlight(CurrentClosest.Object, false);
+			}
+			else
+			{
+				if (CurrentClosest.Mesh && HighlightOverlayMaterial && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
+				{
+					CurrentClosest.Mesh->SetOverlayMaterial(nullptr);
+				}
+			}
+		}
+		
+		if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
+		{
+			IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
+			if (InteractableInterface)
+			{
+				InteractableInterface->Execute_Highlight(CurrentClosest.Object, false);
+			}
+			else
+			{
+				if (CurrentClosest.Mesh && HighlightOverlayMaterial && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
+				{
+					CurrentClosest.Mesh->SetOverlayMaterial(nullptr);
+				}
 			}
 		}
 
@@ -791,6 +823,29 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			if (InteractableInterface)
 			{
 				InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
+			}
+			else
+			{
+				if (HighlightOverlayMaterial && CurrentClosest.Mesh)
+				{
+					CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
+				}
+			}
+		}
+
+		if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
+		{
+			const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
+			if (InteractableInterface)
+			{
+				InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
+			}
+			else
+			{
+				if (HighlightOverlayMaterial && CurrentClosest.Mesh)
+				{
+					CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
+				}
 			}
 		}
 	}
@@ -830,7 +885,18 @@ bool UVrCoreHandManager::AttemptGrip(UGripMotionControllerComponent* MotionContr
 			{
 				EControllerHand HandType;
 				MotionController->GetHandType(HandType);
-				GetWorld()->GetFirstPlayerController()->PlayHapticEffect(GripHaptic, HandType);	
+
+				const UWorld* World = GetWorld();
+				APlayerController* PC = World->GetFirstPlayerController();
+				PC->PlayHapticEffect(GripHaptic, HandType);
+
+				UE_LOG(LogTemp, Warning, TEXT("GRIP DURATION: %f"), GripHaptic->GetDuration());
+				FTimerHandle RumbleHandle;
+				World->GetTimerManager().SetTimer(RumbleHandle, [PC, HandType]()
+				{
+					UE_LOG(LogTemp, Warning, TEXT("GRIP STOPPED"));
+					PC->StopHapticEffect(HandType);
+				}, GripHaptic->GetDuration(), false);
 			}
 			return true;
 		}

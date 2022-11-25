@@ -84,8 +84,10 @@ private:
 
 	void Translate(float Right, float Forward);
 	void Turn(float Right);
+
 public:
 	virtual void PostInitializeComponents() override;
+	
 private:
 	bool bTurnRequiresReset = false;
 };

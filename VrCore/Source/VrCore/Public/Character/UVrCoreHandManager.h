@@ -9,14 +9,15 @@
 struct FHandInteractable
 {
 	UObject* Object;
+	UStaticMeshComponent* Mesh;
 	float Distance;
 	FTransform WorldTransform;
 
 	FHandInteractable() :
-		Object(nullptr), Distance(0), WorldTransform(FTransform()) {};
+		Object(nullptr), Mesh(nullptr), Distance(0), WorldTransform(FTransform()) {};
 
-	FHandInteractable(UObject* _Object, float _Distance, FTransform _WorldTransform) :
-	 Object(_Object), Distance(_Distance), WorldTransform(_WorldTransform) {};
+	FHandInteractable(UObject* _Object, UStaticMeshComponent* _Mesh, float _Distance, FTransform _WorldTransform) :
+	 Object(_Object), Mesh(_Mesh), Distance(_Distance), WorldTransform(_WorldTransform) {};
 };
 
 struct FHandInteractables
@@ -75,10 +76,19 @@ public:
 	/** The distance in front of the player's hand to trace for grippable objects */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	float GripTraceLength = 100;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	bool bDebugGripTrace = false;
 	
 	/** The distance around a player's hand to overlap for grippable objects */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	float GripRadius = 50;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	bool bDebugGripRadius = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UMaterialInterface* HighlightOverlayMaterial = nullptr;
 
 	// Haptics
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
