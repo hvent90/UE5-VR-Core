@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VrCoreInteractionDataAsset.h"
 #include "UObject/Interface.h"
 #include "VrCoreInteractableInterface.generated.h"
 
@@ -65,4 +66,7 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	bool ThumbstickConsumesMovement();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
+	UVrCoreInteractionDataAsset* GetTooltip();
 };

@@ -11,6 +11,31 @@
 #include "Grippables/HandSocketComponent.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Interactables/VrCoreInteractableInterface.h"
+#include "Kismet/KismetMathLibrary.h"
+
+void VLogLine(const AActor* Owner, const FVector& Start, const FVector& End, const float Size, const FColor& Color, const FString& Text)
+{
+#if ENABLE_VISUAL_LOG
+	FVisualLogger& Vlog = FVisualLogger::Get();
+	if (Vlog.IsRecording())
+	{
+		// UE_VLOG_LOCATION(Owner, LogHandManagerVisualLog, Log, Start, Size, Color, TEXT(""));
+		UE_VLOG_SEGMENT(Owner, LogHandManagerVisualLog, Log, Start, End, Color, TEXT(""));
+		UE_VLOG_LOCATION(Owner, LogHandManagerVisualLog, Log, End, Size, Color, TEXT("%s"), *Text);
+	}
+#endif
+}
+
+void VLog(const std::function<void()> Callback)
+{
+#if ENABLE_VISUAL_LOG
+	FVisualLogger& Vlog = FVisualLogger::Get();
+	if (Vlog.IsRecording())
+	{
+		Callback();
+	}
+#endif
+}
 
 void FHandInteractables::AddInteractable(FHandInteractable Interactable)
 {
@@ -143,11 +168,11 @@ void UVrCoreHandManager::RegisterMotionControllers(UGripMotionControllerComponen
 	LeftMotionController->OnDroppedObject.AddDynamic(this, &UVrCoreHandManager::OnDroppedLeft);
 	RightMotionController->OnDroppedObject.AddDynamic(this, &UVrCoreHandManager::OnDroppedRight);
 
-	LeftMesh = LeftSkeletalMesh;
-	RightMesh = RightSkeletalMesh;
-	
-	LeftMeshRelativeTransform = LeftMesh->GetRelativeTransform();
-	RightMeshRelativeTransform = RightMesh->GetRelativeTransform();
+	HandMeshes.Add(LeftMotionController, LeftSkeletalMesh);
+	HandMeshes.Add(RightMotionController, RightSkeletalMesh);
+
+	HandMeshTransforms.Add(LeftMotionController, LeftSkeletalMesh->GetRelativeTransform());
+	HandMeshTransforms.Add(RightMotionController, RightSkeletalMesh->GetRelativeTransform());
 
 	EControllerHand LeftHand;
 	EControllerHand RightHand;
@@ -159,22 +184,22 @@ void UVrCoreHandManager::RegisterMotionControllers(UGripMotionControllerComponen
 
 void UVrCoreHandManager::OnGrippedLeft(const FBPActorGripInformation& GripInfo)
 {
-	OnGrippedObject(LeftMotionController, LeftMesh, GripInfo);
+	OnGrippedObject(LeftMotionController, HandMeshes[LeftMotionController], GripInfo);
 }
 
 void UVrCoreHandManager::OnGrippedRight(const FBPActorGripInformation& GripInfo)
 {
-	OnGrippedObject(RightMotionController, RightMesh, GripInfo);
+	OnGrippedObject(RightMotionController, HandMeshes[RightMotionController], GripInfo);
 }
 
 void UVrCoreHandManager::OnDroppedLeft(const FBPActorGripInformation& GripInformation, bool bWasSocketed)
 {
-	OnDroppedObject(LeftMotionController, LeftMesh, GripInformation);
+	OnDroppedObject(LeftMotionController, HandMeshes[LeftMotionController], GripInformation);
 }
 
 void UVrCoreHandManager::OnDroppedRight(const FBPActorGripInformation& GripInformation, bool bWasSocketed)
 {
-	OnDroppedObject(RightMotionController, RightMesh, GripInformation);
+	OnDroppedObject(RightMotionController, HandMeshes[RightMotionController], GripInformation);
 }
 
 void UVrCoreHandManager::OnDroppedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh,
@@ -184,20 +209,20 @@ void UVrCoreHandManager::OnDroppedObject(UGripMotionControllerComponent* MotionC
 	Mesh->AttachToComponent(MotionController, FAttachmentTransformRules::KeepWorldTransform);
 
 	// Reset the transform
-	FTransform RelativeTransform;
-	EControllerHand Hand;
-	MotionController->GetHandType(Hand);
-	switch (Hand)
-	{
-	case EControllerHand::Left:
-		RelativeTransform = LeftMeshRelativeTransform;
-		break;
-	case EControllerHand::Right:
-		RelativeTransform = RightMeshRelativeTransform;
-		break;
-	default:
-		break;
-	}
+	const FTransform RelativeTransform = HandMeshTransforms[MotionController];
+	// EControllerHand Hand;
+	// MotionController->GetHandType(Hand);
+	// switch (Hand)
+	// {
+	// case EControllerHand::Left:
+	// 	RelativeTransform = HandMeshTransforms[LeftMotionController];
+	// 	break;
+	// case EControllerHand::Right:
+	// 	RelativeTransform = HandMeshTransforms[RightMotionController];
+	// 	break;
+	// default:
+	// 	break;
+	// }
 	Mesh->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
 
 	// Clear gripped pose
@@ -208,53 +233,121 @@ void UVrCoreHandManager::OnDroppedObject(UGripMotionControllerComponent* MotionC
 	}
 }
 
-void UVrCoreHandManager::OnGrippedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh,
-	const FBPActorGripInformation& GripInfo)
+void UVrCoreHandManager::ApplyHandPose(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh,
+	UHandSocketComponent* HandSocketComponent, const FBPActorGripInformation& GripInfo)
 {
-	UHandSocketComponent* HandSocketComponent = UHandSocketComponent::GetHandSocketComponentFromObject(
-		GripInfo.GrippedObject, GripInfo.SlotName);
-
-	if (HandSocketComponent)
-	{
-		EControllerHand Hand;
-		MotionController->GetHandType(Hand);
+	EControllerHand Hand;
+	MotionController->GetHandType(Hand);
 		
-		FPoseSnapshot Pose;
-		if (HandSocketComponent->GetBlendedPoseSnapShot(Pose, Mesh))
+	FPoseSnapshot Pose;
+	if (HandSocketComponent->GetBlendedPoseSnapShot(Pose, Mesh))
+	{
+		UAnimInstance* AnimInstance = Mesh->GetAnimInstance();
+		if (AnimInstance->Implements<UVrCoreHandAnimInterface>())
 		{
-			UAnimInstance* AnimInstance = Mesh->GetAnimInstance();
-			if (AnimInstance->Implements<UVrCoreHandAnimInterface>())
+			IVrCoreHandAnimInterface::Execute_EnterPose(AnimInstance, Pose);
+
+			UPrimitiveComponent* GrippedComponent = Cast<UPrimitiveComponent>(GripInfo.GrippedObject);
+			const AActor* GrippedActor = Cast<AActor>(GripInfo.GrippedObject);
+			switch (GripInfo.GripTargetType)
 			{
-				IVrCoreHandAnimInterface::Execute_EnterPose(AnimInstance, Pose);
-
-				UPrimitiveComponent* GrippedComponent = Cast<UPrimitiveComponent>(GripInfo.GrippedObject);
-				AActor* GrippedActor = Cast<AActor>(GripInfo.GrippedObject);
-				switch (GripInfo.GripTargetType)
+			default:
+				UE_LOG(LogTemp, Warning, TEXT("Unaccounted for grip"));
+				break;
+			case EGripTargetType::ComponentGrip:
+				if (GrippedComponent)
 				{
-				default:
-					UE_LOG(LogTemp, Warning, TEXT("Unaccounted for grip"));
-					break;
-				case EGripTargetType::ComponentGrip:
-					if (GrippedComponent)
-					{
-						Mesh->AttachToComponent(GrippedComponent, FAttachmentTransformRules::KeepWorldTransform);
+					Mesh->AttachToComponent(GrippedComponent, FAttachmentTransformRules::KeepWorldTransform);
 
-						const FTransform MeshTransform = HandSocketComponent->GetMeshRelativeTransform(Hand == EControllerHand::Right);
-						Mesh->SetRelativeLocationAndRotation(MeshTransform.GetLocation(), MeshTransform.GetRotation().Rotator());
-					}
-					break;
-				case EGripTargetType::ActorGrip:
-					if (GrippedActor)
-					{
-						Mesh->AttachToComponent(GrippedActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
-
-						const FTransform MeshTransform = HandSocketComponent->GetMeshRelativeTransform(Hand == EControllerHand::Right);
-						Mesh->SetRelativeLocationAndRotation(MeshTransform.GetLocation(), MeshTransform.GetRotation().Rotator());
-					}
-					break;
+					const FTransform MeshTransform = HandSocketComponent->GetMeshRelativeTransform(Hand == EControllerHand::Right);
+					Mesh->SetRelativeLocationAndRotation(MeshTransform.GetLocation(), MeshTransform.GetRotation().Rotator());
 				}
+				break;
+			case EGripTargetType::ActorGrip:
+				if (GrippedActor)
+				{
+					Mesh->AttachToComponent(GrippedActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+
+					const FTransform MeshTransform = HandSocketComponent->GetMeshRelativeTransform(Hand == EControllerHand::Right);
+					Mesh->SetRelativeLocationAndRotation(MeshTransform.GetLocation(), MeshTransform.GetRotation().Rotator());
+				}
+				break;
 			}
 		}
+	}
+}
+
+void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* GrippedObject)
+{
+	const UVrCoreInteractionDataAsset* InteractionDataAsset = IVrCoreInteractableInterface::Execute_GetTooltip(GrippedObject);
+	USceneComponent* GrippedSceneComponent = Cast<USceneComponent>(GrippedObject);
+
+	// Currently showing tooltip for the requested component
+	if (GrippedSceneComponent == TooltipParentComponent && IsValid(InteractionDataAsset))
+	{
+		return;
+	}
+	
+	if (IsValid(InteractionDataAsset) && IsValid(GrippedSceneComponent))
+	{
+		if (!IsValid(InteractionTooltip.Get()) && IsValid(TooltipClass))
+		{
+			InteractionTooltip = GetWorld()->SpawnActor(TooltipClass);
+		}
+
+		if (!IsValid(InteractionTooltip) || !InteractionTooltip->Implements<UVrCoreInteractionTooltipInterface>())
+		{
+			UE_LOG(LogTemp, Error, TEXT("Tooltip not found"));
+			return;
+		}
+		
+		IVrCoreInteractionTooltipInterface::Execute_SetGripAction(InteractionTooltip, InteractionDataAsset->Grip);
+		IVrCoreInteractionTooltipInterface::Execute_SetThumbstickAction(InteractionTooltip, InteractionDataAsset->Thumbstick);
+		IVrCoreInteractionTooltipInterface::Execute_SetTriggerAction(InteractionTooltip, InteractionDataAsset->Trigger);
+		IVrCoreInteractionTooltipInterface::Execute_SetPrimaryButtonAction(InteractionTooltip, InteractionDataAsset->PrimaryButton);
+		IVrCoreInteractionTooltipInterface::Execute_SetSecondaryButtonAction(InteractionTooltip, InteractionDataAsset->SecondaryButton);
+
+		TooltipParentComponent = GrippedSceneComponent;
+
+		// Set location
+		InteractionTooltip->AttachToComponent(MotionController, FAttachmentTransformRules(EAttachmentRule::KeepRelative, true));
+		InteractionTooltip->SetActorLocationAndRotation(MotionController->GetComponentLocation(), MotionController->GetComponentRotation());
+		// InteractionTooltip->SetRelativeLocation(FVector(Tooltip->GetWidget()->GetDesiredSize().X, 0, 0)); // TODO: Get better position
+
+		// Face player
+		// const APlayerCameraManager* PlayerCamera = GetWorld()->GetFirstPlayerController()->PlayerCameraManager;
+		// Tooltip->SetWorldRotation(UKismetMathLibrary::FindLookAtRotation(Tooltip->GetComponentLocation(), PlayerCamera->GetCameraLocation()));
+
+		// Hydrate & Visibility
+		// Tooltip->Hydrate(InteractionDataAsset);
+		// InteractionTooltip->SetActorHiddenInGame(false);
+		// InteractionTooltip->Activate();
+		
+		// Deactivate Tooltip after TooltipDuration seconds
+		GetWorld()->GetTimerManager().SetTimer(TooltipTimerHandle, [this, GrippedSceneComponent]()
+		{
+			if (IsValid(InteractionTooltip) && GrippedSceneComponent == TooltipParentComponent)
+			{
+				InteractionTooltip->Destroy();
+				TooltipParentComponent = nullptr;
+			}
+		}, TooltipDuration, false);
+	}
+}
+
+void UVrCoreHandManager::OnGrippedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh,
+                                         const FBPActorGripInformation& GripInfo)
+{
+	// Apply hand pose 
+	if (UHandSocketComponent* HandSocketComponent = UHandSocketComponent::GetHandSocketComponentFromObject(
+		GripInfo.GrippedObject, GripInfo.SlotName))
+	{
+		ApplyHandPose(MotionController, Mesh, HandSocketComponent, GripInfo);
+	}
+
+	if (GripInfo.GrippedObject->Implements<UVrCoreInteractableInterface>())
+	{
+		ShowInteractionTooltip(MotionController, GripInfo.GrippedObject);
 	}
 }
 
@@ -652,13 +745,17 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(GetOwner());
 	Params.bDebugQuery = bDebugGripTrace;
-
+	
+	const FVector Start = MotionController->GetComponentLocation();
+	const FVector End = MotionController->GetComponentLocation()
+		+ HandMeshes[MotionController]->GetForwardVector()
+		* GripTraceLength;
+	VLogLine(GetOwner(), Start, End, 1, FColor::Black, "Forward Trace Check");
+	
 	// Find objects in front of hand
 	TArray<FHitResult> Hits;
 	const bool Hit = World->LineTraceMultiByChannel(Hits,
-		MotionController->GetComponentLocation(),
-		MotionController->GetComponentLocation() + MotionController->GetForwardVector() * GripTraceLength,
-		ECollisionChannel::ECC_Visibility, Params);
+		Start, End, ECollisionChannel::ECC_Visibility, Params);
 
 	if (!Hit)
 	{
@@ -672,11 +769,13 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
 		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
 		{
+			// VLogLine(GetOwner(), Start, HitResult.Location, 10, FColor::Blue, "Forward Trace: Actor | UVrCoreInteractableInterface");
 			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
 		}
 
 		if (Actor && Actor->Implements<UVRGripInterface>())
 		{
+			// VLogLine(GetOwner(), Start, HitResult.Location, 10, FColor::Blue, "Forward Trace: Actor | UVRGripInterface");
 			Grippables.Add(FHandInteractable(Actor, StaticMeshComponent, HitResult.Distance, HitResult.GetActor()->GetActorTransform()));
 		}
 
@@ -684,11 +783,13 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 		StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 		if (Component && Component->Implements<UVrCoreInteractableInterface>())
 		{
+			// VLogLine(GetOwner(), Start, HitResult.Location, 3, FColor::Blue, "Forward Trace: Component | UVrCoreInteractableInterface");
 			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
 		}
 
 		if (Component && Component->Implements<UVRGripInterface>())
 		{
+			// VLogLine(GetOwner(), Start, HitResult.Location, 10, FColor::Blue, "Forward Trace: Component | UVRGripInterface");
 			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, HitResult.Distance, HitResult.GetComponent()->GetComponentTransform()));
 		}
 	}
@@ -699,8 +800,6 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerComponent* MotionController,
                                             TArray<FHandInteractable>& Interactables, TArray<FHandInteractable>& Grippables) const
 {
-	Interactables.Empty();
-	
 	UWorld* World = GetWorld();
 	if (!World)
 	{
@@ -710,10 +809,16 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(GetOwner());
 	Params.bDebugQuery = bDebugGripRadius;
+
+	const FVector Start = MotionController->GetComponentLocation();
+	VLog([this, Start]()
+	{
+		UE_VLOG_LOCATION(GetOwner(), LogHandManagerVisualLog, Log, Start, GripRadius, FColor::Black, TEXT("Overlap Radius Check"));
+	});
 	
 	TArray<FOverlapResult> Overlaps;
 	const bool Overlap = World->OverlapMultiByChannel(Overlaps,
-	                                                  MotionController->GetComponentLocation(), FQuat(),
+	                                                  Start, FQuat(),
 	                                                  GripCollisionChannel, FCollisionShape::MakeSphere(GripRadius), Params);
 	if (!Overlap)
 	{
@@ -727,12 +832,14 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
 		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
 		{
+			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVrCoreInteractableInterface");
 			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
 			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 		}
 
 		if (Actor && Actor->Implements<UVRGripInterface>())
 		{
+			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVRGripInterface");
 			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
 			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 		}
@@ -741,12 +848,14 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 		StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
 		if (Component && Component->Implements<UVrCoreInteractableInterface>())
 		{
+			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVrCoreInteractableInterface");
 			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
 			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
 		}
 		
 		if (Component && Component->Implements<UVRGripInterface>())
 		{
+			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVRGripInterface");
 			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
 			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
 		}
@@ -816,37 +925,84 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			HandInteractables[MotionController].AddGrippable(Grippable);
 		}
 
+#if ENABLE_VISUAL_LOG
+		VLog([this, MotionController, Interactables, Grippables]()
+		{
+			FHandInteractable Closest;
+			FString DebugString = "Interactables for " + MotionController->GetName() + ":\n";
+			if (HandInteractables[MotionController].GetClosestInteractable(Closest))
+			{
+				DebugString.Append("Closest: " + Closest.Object->GetName() + "\n");
+				UE_VLOG_LOCATION(GetOwner(), LogHandManagerVisualLog, Log, Closest.WorldTransform.GetLocation(), 3, FColor::Blue, TEXT("Closest Interactable"));
+			}
+			
+			for (const FHandInteractable& Interactable : Interactables)
+			{
+				DebugString.Append(Interactable.Object->GetName() + "\n");
+				if (Interactable.Object != Closest.Object)
+				{
+					UE_VLOG_LOCATION(GetOwner(), LogHandManagerVisualLog, Log, Closest.WorldTransform.GetLocation(), 3, FColor::White, TEXT("Interactable"));
+				}
+			}
+
+			UE_VLOG(GetOwner(), LogHandManagerVisualLog, Log, TEXT("%s"), *DebugString);
+
+			DebugString = "Grippables for " + MotionController->GetName() + ":\n";
+			if (HandInteractables[MotionController].GetClosestInteractable(Closest))
+			{
+				DebugString.Append("Closest: " + Closest.Object->GetName() + "\n");
+				UE_VLOG_LOCATION(GetOwner(), LogHandManagerVisualLog, Log, Closest.WorldTransform.GetLocation(), 3, FColor::Blue, TEXT("Closest Grippable"));
+			}
+
+			for (const FHandInteractable& Grippable : Grippables)
+			{
+				DebugString.Append(Grippable.Object->GetName() + "\n");
+				if (Grippable.Object != Closest.Object)
+				{
+					UE_VLOG_LOCATION(GetOwner(), LogHandManagerVisualLog, Log, Closest.WorldTransform.GetLocation(), 3, FColor::White, TEXT("Grippable"));
+				}
+			}
+			UE_VLOG(GetOwner(), LogHandManagerVisualLog, Log, TEXT("%s"), *DebugString);
+		});
+#endif
+		
 		// Highlight the closest interactable
 		if (HandInteractables[MotionController].GetClosestInteractable(CurrentClosest))
 		{
-			const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-			if (InteractableInterface)
-			{
-				InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
-			}
-			else
-			{
+			// const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
+			// if (InteractableInterface)
+			// {
+			// 	InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
+			// }
+			// else
+			// {
 				if (HighlightOverlayMaterial && CurrentClosest.Mesh)
 				{
 					CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
 				}
-			}
+			// }
+		}
+
+		// Show tooltip for closest interactable without grip
+		if (HandInteractables[MotionController].GetClosestInteractableWithoutGrip(CurrentClosest))
+		{
+			ShowInteractionTooltip(MotionController, CurrentClosest.Object);
 		}
 
 		if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
 		{
-			const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-			if (InteractableInterface)
-			{
-				InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
-			}
-			else
-			{
+			// const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
+			// if (InteractableInterface)
+			// {
+			// 	InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
+			// }
+			// else
+			// {
 				if (HighlightOverlayMaterial && CurrentClosest.Mesh)
 				{
 					CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
 				}
-			}
+			// }
 		}
 	}
 }

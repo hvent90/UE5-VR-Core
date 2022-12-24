@@ -4,7 +4,13 @@
 #include "CoreMinimal.h"
 #include "VRGripInterface.h"
 #include "Components/ActorComponent.h"
+#include <Runtime/Engine/Public/VisualLogger/VisualLogger.h>
+
+#include "Grippables/HandSocketComponent.h"
+#include "Interactables/VrCoreInteractionTooltip.h"
 #include "UVrCoreHandManager.generated.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogHandManagerVisualLog, Log, All);
 
 struct FHandInteractable
 {
@@ -156,24 +162,29 @@ protected:
 	void HydrateHandInteractables();
 	
 	TMap<UGripMotionControllerComponent*, FHandInteractables> HandInteractables;
+	UPROPERTY()
+	TMap<UGripMotionControllerComponent*, USkeletalMeshComponent*> HandMeshes;
+	TMap<UGripMotionControllerComponent*, FTransform> HandMeshTransforms;
 
 	UPROPERTY()
 	UGripMotionControllerComponent* LeftMotionController = nullptr;
 	UPROPERTY()
 	UGripMotionControllerComponent* RightMotionController = nullptr;
-	UPROPERTY()
-	USkeletalMeshComponent* LeftMesh = nullptr;
-	UPROPERTY()
-	USkeletalMeshComponent* RightMesh = nullptr;
-	
-	FTransform LeftMeshRelativeTransform;
-	FTransform RightMeshRelativeTransform;
 
 	void OnGrippedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, const FBPActorGripInformation& GripInfo);
 	void OnDroppedObject(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, const FBPActorGripInformation& GripInfo);
 	
 	float ThumbstickResetThreshold = .15;
 	float ThumbstickImpulseActivationThreshold = .5;
+
+	UPROPERTY(EditAnywhere, Category = "Vr Core Tooltip")
+	TSubclassOf<AActor> TooltipClass;
+	UPROPERTY(EditAnywhere, Category = "Vr Core Tooltip")
+	float TooltipDuration = 5;
+	TObjectPtr<AActor> InteractionTooltip;
+	UPROPERTY()
+	USceneComponent* TooltipParentComponent = nullptr;
+	FTimerHandle TooltipTimerHandle;
 
 private:
 	TMap<EControllerHand, bool> ImpulseActivations;
@@ -182,4 +193,7 @@ private:
 	{
 		return GetOwner()->HasAuthority();
 	}
+
+	void ApplyHandPose(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, UHandSocketComponent* HandSocketComponent, const FBPActorGripInformation& GripInfo);
+	void ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* GrippedObject);
 };
