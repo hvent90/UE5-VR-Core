@@ -243,7 +243,7 @@ void UVrCoreHandManager::ApplyHandPose(UGripMotionControllerComponent* MotionCon
 	if (HandSocketComponent->GetBlendedPoseSnapShot(Pose, Mesh))
 	{
 		UAnimInstance* AnimInstance = Mesh->GetAnimInstance();
-		if (AnimInstance->Implements<UVrCoreHandAnimInterface>())
+		if (IsValid(AnimInstance) && AnimInstance->Implements<UVrCoreHandAnimInterface>())
 		{
 			IVrCoreHandAnimInterface::Execute_EnterPose(AnimInstance, Pose);
 
@@ -277,37 +277,47 @@ void UVrCoreHandManager::ApplyHandPose(UGripMotionControllerComponent* MotionCon
 	}
 }
 
-void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* GrippedObject)
+void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable)
 {
-	const UVrCoreInteractionDataAsset* InteractionDataAsset = IVrCoreInteractableInterface::Execute_GetTooltip(GrippedObject);
-	USceneComponent* GrippedSceneComponent = Cast<USceneComponent>(GrippedObject);
-
-	// Currently showing tooltip for the requested component
-	if (GrippedSceneComponent == TooltipParentComponent && IsValid(InteractionDataAsset))
+	const UVrCoreInteractionTooltipInterface* TooltipInterface = Cast<UVrCoreInteractionTooltipInterface>(Interactable);
+	if (!IsValid(TooltipInterface))
 	{
 		return;
 	}
 	
-	if (IsValid(InteractionDataAsset) && IsValid(GrippedSceneComponent))
+	const UVrCoreInteractionDataAsset* InteractionDataAsset = IVrCoreInteractableInterface::Execute_GetTooltip(Interactable);
+	USceneComponent* InteractableComponent = Cast<USceneComponent>(Interactable);
+	if (!IsValid(InteractableComponent))
+	{
+		return;
+	}
+
+	// Currently showing tooltip for the requested component
+	if (InteractableComponent == TooltipParentComponent)
+	{
+		return;
+	}
+	
+	if (IsValid(InteractionDataAsset))
 	{
 		if (!IsValid(InteractionTooltip.Get()) && IsValid(TooltipClass))
 		{
 			InteractionTooltip = GetWorld()->SpawnActor(TooltipClass);
 		}
 
-		if (!IsValid(InteractionTooltip) || !InteractionTooltip->Implements<UVrCoreInteractionTooltipInterface>())
+		if (!IsValid(InteractionTooltip.Get()))
 		{
 			UE_LOG(LogTemp, Error, TEXT("Tooltip not found"));
 			return;
 		}
+
+		TooltipParentComponent = InteractableComponent;
 		
 		IVrCoreInteractionTooltipInterface::Execute_SetGripAction(InteractionTooltip, InteractionDataAsset->Grip);
 		IVrCoreInteractionTooltipInterface::Execute_SetThumbstickAction(InteractionTooltip, InteractionDataAsset->Thumbstick);
 		IVrCoreInteractionTooltipInterface::Execute_SetTriggerAction(InteractionTooltip, InteractionDataAsset->Trigger);
 		IVrCoreInteractionTooltipInterface::Execute_SetPrimaryButtonAction(InteractionTooltip, InteractionDataAsset->PrimaryButton);
 		IVrCoreInteractionTooltipInterface::Execute_SetSecondaryButtonAction(InteractionTooltip, InteractionDataAsset->SecondaryButton);
-
-		TooltipParentComponent = GrippedSceneComponent;
 
 		// Set location
 		InteractionTooltip->AttachToComponent(MotionController, FAttachmentTransformRules(EAttachmentRule::KeepRelative, true));
@@ -324,14 +334,23 @@ void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* 
 		// InteractionTooltip->Activate();
 		
 		// Deactivate Tooltip after TooltipDuration seconds
-		GetWorld()->GetTimerManager().SetTimer(TooltipTimerHandle, [this, GrippedSceneComponent]()
-		{
-			if (IsValid(InteractionTooltip) && GrippedSceneComponent == TooltipParentComponent)
-			{
-				InteractionTooltip->Destroy();
-				TooltipParentComponent = nullptr;
-			}
-		}, TooltipDuration, false);
+		// GetWorld()->GetTimerManager().SetTimer(TooltipTimerHandle, [this, InteractableComponent]()
+		// {
+		// 	if (IsValid(InteractionTooltip) && InteractableComponent == TooltipParentComponent)
+		// 	{
+		// 		InteractionTooltip->Destroy();
+		// 		TooltipParentComponent = nullptr;
+		// 	}
+		// }, TooltipDuration, false);
+	}
+}
+
+void UVrCoreHandManager::TeardownInteractableTooltip()
+{
+	if (IsValid(InteractionTooltip))
+	{
+		InteractionTooltip->Destroy();
+		TooltipParentComponent = nullptr;
 	}
 }
 
@@ -345,10 +364,10 @@ void UVrCoreHandManager::OnGrippedObject(UGripMotionControllerComponent* MotionC
 		ApplyHandPose(MotionController, Mesh, HandSocketComponent, GripInfo);
 	}
 
-	if (GripInfo.GrippedObject->Implements<UVrCoreInteractableInterface>())
-	{
-		ShowInteractionTooltip(MotionController, GripInfo.GrippedObject);
-	}
+	// if (GripInfo.GrippedObject->Implements<UVrCoreInteractableInterface>())
+	// {
+	// 	ShowInteractionTooltip(MotionController, GripInfo.GrippedObject);
+	// }
 }
 
 void UVrCoreHandManager::HandlePrimaryButton(UGripMotionControllerComponent* MotionController, bool bPressed)
@@ -567,6 +586,7 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 			}
 
 			IVrCoreInteractableInterface::Execute_K2_SendThumbstickAxis(GrippedObject, X, Y);
+			IVrCoreInteractableInterface::Execute_SendThumbstickAxis(GrippedObject, X, Y);
 			return IVrCoreInteractableInterface::Execute_ThumbstickConsumesMovement(GrippedObject);
 		}
 		else
@@ -593,6 +613,7 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 				}
 				
 				IVrCoreInteractableInterface::Execute_K2_SendThumbstickAxis(Actor, X, Y);
+				IVrCoreInteractableInterface::Execute_SendThumbstickAxis(Actor, X, Y);
 				return IVrCoreInteractableInterface::Execute_ThumbstickConsumesMovement(Actor);	
 			}
 		}
@@ -755,14 +776,13 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	// Find objects in front of hand
 	TArray<FHitResult> Hits;
 	const bool Hit = World->LineTraceMultiByChannel(Hits,
-		Start, End, ECollisionChannel::ECC_Visibility, Params);
+		Start, End, GripCollisionChannel, Params);
 
 	if (!Hit)
 	{
 		return false;
 	}
 	
-
 	for (FHitResult HitResult : Hits)
 	{
 		AActor* Actor = HitResult.GetActor();
@@ -874,14 +894,10 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		FHandInteractable CurrentClosest;
 		if (HandInteractables[MotionController].GetClosestInteractable(CurrentClosest))
 		{
-			IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-			if (InteractableInterface)
+			const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
+			if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false)))
 			{
-				InteractableInterface->Execute_Highlight(CurrentClosest.Object, false);
-			}
-			else
-			{
-				if (CurrentClosest.Mesh && HighlightOverlayMaterial && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
+				if (IsValid(CurrentClosest.Mesh) && IsValid(HighlightOverlayMaterial) && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
 				{
 					CurrentClosest.Mesh->SetOverlayMaterial(nullptr);
 				}
@@ -891,13 +907,9 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
 		{
 			IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-			if (InteractableInterface)
+			if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false)))
 			{
-				InteractableInterface->Execute_Highlight(CurrentClosest.Object, false);
-			}
-			else
-			{
-				if (CurrentClosest.Mesh && HighlightOverlayMaterial && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
+				if (IsValid(CurrentClosest.Mesh) && IsValid(HighlightOverlayMaterial) && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
 				{
 					CurrentClosest.Mesh->SetOverlayMaterial(nullptr);
 				}
@@ -987,6 +999,10 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		if (HandInteractables[MotionController].GetClosestInteractableWithoutGrip(CurrentClosest))
 		{
 			ShowInteractionTooltip(MotionController, CurrentClosest.Object);
+		}
+		else
+		{
+			TeardownInteractableTooltip();
 		}
 
 		if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))

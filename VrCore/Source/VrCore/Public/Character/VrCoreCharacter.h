@@ -21,7 +21,7 @@ public:
 	AVrCoreCharacter();
 	
 	virtual void Tick(float DeltaSeconds) override;
-	
+
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
 	// Input
@@ -35,10 +35,16 @@ public:
 	void OnGripReleaseRight();
 	void OnPrimaryButtonLeft();
 	void OnPrimaryButtonRight();
+	void OnPrimaryButtonReleasedLeft();
+	void OnPrimaryButtonReleasedRight();
 	void OnSecondaryButtonLeft();
 	void OnSecondaryButtonRight();
+	void OnSecondaryButtonReleasedLeft();
+	void OnSecondaryButtonReleasedRight();
 	void OnThumbstickPressLeft();
 	void OnThumbstickPressRight();
+	void OnThumbstickPressReleasedLeft();
+	void OnThumbstickPressReleasedRight();
 	void OnThumbstickAxisXLeft(float Value);
 	void OnThumbstickAxisXRight(float Value);
 	void OnThumbstickAxis(EControllerHand Hand, float X, float Y);

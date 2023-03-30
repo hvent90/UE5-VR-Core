@@ -44,12 +44,18 @@ void AVrCoreCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	
 	PlayerInputComponent->BindAction("VrCore_PrimaryButtonLeft", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnPrimaryButtonLeft);
 	PlayerInputComponent->BindAction("VrCore_PrimaryButtonRight", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnPrimaryButtonRight);
+	PlayerInputComponent->BindAction("VrCore_PrimaryButtonLeft", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnPrimaryButtonReleasedLeft);
+	PlayerInputComponent->BindAction("VrCore_PrimaryButtonRight", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnPrimaryButtonReleasedRight);
 	
 	PlayerInputComponent->BindAction("VrCore_SecondaryButtonLeft", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnSecondaryButtonLeft);
 	PlayerInputComponent->BindAction("VrCore_SecondaryButtonRight", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnSecondaryButtonRight);
+	PlayerInputComponent->BindAction("VrCore_SecondaryButtonLeft", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnSecondaryButtonReleasedLeft);
+	PlayerInputComponent->BindAction("VrCore_SecondaryButtonRight", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnSecondaryButtonReleasedRight);
 	
 	PlayerInputComponent->BindAction("VrCore_ThumbstickPressLeft", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnThumbstickPressLeft);
 	PlayerInputComponent->BindAction("VrCore_ThumbstickPressRight", EInputEvent::IE_Pressed, this, &AVrCoreCharacter::OnThumbstickPressRight);
+	PlayerInputComponent->BindAction("VrCore_ThumbstickPressLeft", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnThumbstickPressReleasedLeft);
+	PlayerInputComponent->BindAction("VrCore_ThumbstickPressRight", EInputEvent::IE_Released, this, &AVrCoreCharacter::OnThumbstickPressReleasedRight);
 	
 	PlayerInputComponent->BindAxis("VrCore_ThumbstickAxisXLeft", this, &AVrCoreCharacter::OnThumbstickAxisXLeft);
 	PlayerInputComponent->BindAxis("VrCore_ThumbstickAxisXRight", this, &AVrCoreCharacter::OnThumbstickAxisXRight);
@@ -100,26 +106,62 @@ void AVrCoreCharacter::OnGripReleaseRight()
 
 void AVrCoreCharacter::OnPrimaryButtonLeft()
 {
+	HandManager->HandlePrimaryButton(LeftMotionController, true);
 }
 
 void AVrCoreCharacter::OnPrimaryButtonRight()
 {
+	HandManager->HandlePrimaryButton(RightMotionController, true);
+}
+
+void AVrCoreCharacter::OnPrimaryButtonReleasedLeft()
+{
+	HandManager->HandlePrimaryButton(LeftMotionController, false);
+}
+
+void AVrCoreCharacter::OnPrimaryButtonReleasedRight()
+{
+	HandManager->HandlePrimaryButton(RightMotionController, false);
 }
 
 void AVrCoreCharacter::OnSecondaryButtonLeft()
 {
+	HandManager->HandleSecondaryButton(LeftMotionController, true);
 }
 
 void AVrCoreCharacter::OnSecondaryButtonRight()
 {
+	HandManager->HandleSecondaryButton(RightMotionController, true);
+}
+
+void AVrCoreCharacter::OnSecondaryButtonReleasedLeft()
+{
+	HandManager->HandleSecondaryButton(LeftMotionController, false);
+}
+
+void AVrCoreCharacter::OnSecondaryButtonReleasedRight()
+{
+	HandManager->HandleSecondaryButton(RightMotionController, false);
 }
 
 void AVrCoreCharacter::OnThumbstickPressLeft()
 {
+	HandManager->HandleThumbstickPress(LeftMotionController, true);
 }
 
 void AVrCoreCharacter::OnThumbstickPressRight()
 {
+	HandManager->HandleThumbstickPress(RightMotionController, true);
+}
+
+void AVrCoreCharacter::OnThumbstickPressReleasedLeft()
+{
+	HandManager->HandleThumbstickPress(LeftMotionController, false);
+}
+
+void AVrCoreCharacter::OnThumbstickPressReleasedRight()
+{
+	HandManager->HandleThumbstickPress(RightMotionController, false);
 }
 
 void AVrCoreCharacter::OnThumbstickAxisXLeft(float Value)

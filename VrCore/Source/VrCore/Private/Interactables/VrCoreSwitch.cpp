@@ -15,10 +15,10 @@ UVrCoreSwitch::UVrCoreSwitch(const FObjectInitializer& ObjectInitializer) : Supe
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
-	BaseMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("Base Mesh");
-	BaseMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	BaseMeshComponent->SetGenerateOverlapEvents(false);
-	BaseMeshComponent->SetupAttachment(this);
+	// BaseMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>("Base Mesh");
+	// BaseMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// BaseMeshComponent->SetGenerateOverlapEvents(false);
+	// BaseMeshComponent->SetupAttachment(this);
 
 	bDenyGripping = true;
 }
@@ -27,8 +27,18 @@ void UVrCoreSwitch::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	BaseMeshComponent->SetStaticMesh(BaseMesh);
-	BaseMeshComponent->SetRelativeTransform(BaseMeshOffset);
+	// BaseMeshComponent->SetStaticMesh(BaseMesh);
+	// BaseMeshComponent->SetRelativeTransform(BaseMeshOffset);
+}
+
+void UVrCoreSwitch::ToggleSwitch()
+{
+	bSwitchActivated = !bSwitchActivated;
+
+	if (UKismetSystemLibrary::IsServer(GetWorld()))
+	{
+		OnRep_SwitchActivation();
+	}
 }
 
 void UVrCoreSwitch::BeginPlay()

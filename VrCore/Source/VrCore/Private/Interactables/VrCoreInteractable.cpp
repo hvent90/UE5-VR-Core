@@ -31,7 +31,7 @@ void AVrCoreInteractable::BeginPlay()
 	Tip->SetVisibility(false);
 }
 
-void AVrCoreInteractable::Highlight_Implementation(bool Visible)
+bool AVrCoreInteractable::Highlight_Implementation(bool Visible)
 {
 	const bool bShowTip = Visible && bUseTip;
 	Tip->SetVisibility(bShowTip);
@@ -55,6 +55,8 @@ void AVrCoreInteractable::Highlight_Implementation(bool Visible)
 			Mesh->SetVisibility(Visible && bUseSeparateMeshesForHighlighting);
 		}
 	}
+
+	return true;
 }
 
 bool AVrCoreInteractable::IsInteractableWithoutGrip_Implementation()

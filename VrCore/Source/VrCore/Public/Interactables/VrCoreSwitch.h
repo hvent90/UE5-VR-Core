@@ -38,17 +38,16 @@ public:
 		{
 			return;
 		}
-		
-		bSwitchActivated = !bSwitchActivated;
 
-		if (UKismetSystemLibrary::IsServer(GetWorld()))
-		{
-			OnRep_SwitchActivation();
-		}
+		ToggleSwitch();
 	}
 
+	UFUNCTION(BlueprintCallable, Category = "VrCore")
+	void ToggleSwitch();
+	
 	virtual void BeginPlay() override;
 
+	UPROPERTY(BlueprintAssignable, Category = "VrCore")
 	FOnSwitchStateChanged OnSwitchStateChanged;
 
 protected:

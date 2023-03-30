@@ -7,14 +7,19 @@
 #include "UObject/Interface.h"
 #include "VrCoreInteractableInterface.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTriggerPressed, bool, bPressed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPrimaryPressed, bool, bPressed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSecondaryPressed, bool, bPressed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickAxis, FVector2D, Value);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickPress, bool, bPressed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickImpulse, FVector2D, Direction);
+
 // This class does not need to be modified.
 UINTERFACE()
 class UVrCoreInteractableInterface : public UInterface
 {
 	GENERATED_BODY()
 };
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickImpulse, FVector2D, Direction);
 
 /**
  * 
@@ -25,14 +30,22 @@ class VRCORE_API IVrCoreInteractableInterface
 
 public:
 	/**
-	 * Suggested use:
-     * - Highlight the closest object to the user's motion controller that is within interaction radius.
+	 * @brief Suggested use:
+	 * - Highlight the closest object to the user's motion controller that is within interaction radius.
 	 *     If the object is a switch, show the text "trigger" informing them to interact with the
-     *     object by pressing trigger.
-	 * - Have a frenel shader or some equivalent to do the highlight effect.
+	 *     object by pressing trigger.
+	 * - Have a fresnel shader or some equivalent to do the highlight effect.
+	 *
+	 * @return Returns false if it has failed.
+	 */
+	
+	/**
+	 * @brief 
+	 * @param Visible 
+	 * @return 
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
-	void Highlight(bool Visible);
+	bool Highlight(bool Visible);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	void SendTrigger(bool Pressed);
@@ -49,8 +62,8 @@ public:
 	/**
 	 * @return Returns true if it should prevent moving/turning 
 	 */
-	UFUNCTION(Category = "VrCoreInteractableInterface")
-	virtual void SendThumbstickAxis(float X, float Y);
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
+	void SendThumbstickAxis(float X, float Y);
 
 	UFUNCTION(BlueprintNativeEvent, Category = "VrCoreInteractableInterface")
 	void SendThumbstickImpulse(FVector2D Direction);

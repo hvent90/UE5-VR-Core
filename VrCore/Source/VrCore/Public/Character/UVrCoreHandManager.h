@@ -195,5 +195,6 @@ private:
 	}
 
 	void ApplyHandPose(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, UHandSocketComponent* HandSocketComponent, const FBPActorGripInformation& GripInfo);
-	void ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* GrippedObject);
+	void ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable);
+	void TeardownInteractableTooltip();
 };
