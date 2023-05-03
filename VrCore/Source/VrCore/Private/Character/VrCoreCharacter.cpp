@@ -329,8 +329,8 @@ void AVrCoreCharacter::Eject_Implementation(FVector ExitLocation, FRotator ExitR
 	ExitTransform.SetRotation(ExitRotation.Quaternion());
 	ExitTransform.SetScale3D(FVector(1));
 	
-	Server_SetSeatedMode(nullptr, false, FTransform(),
-ExitTransform, 0, 0);
+	Server_SetSeatedMode(nullptr, false,
+ExitTransform, FTransform(), 0, 0);
 }
 
 FVector AVrCoreCharacter::GetInitialRelativeLocation_Implementation()

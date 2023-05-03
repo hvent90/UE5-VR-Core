@@ -11,6 +11,7 @@
 #include "Grippables/HandSocketComponent.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Interactables/VrCoreInteractableInterface.h"
+#include "Interactables/VrCoreWidgetComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 
 void VLogLine(const AActor* Owner, const FVector& Start, const FVector& End, const float Size, const FColor& Color, const FString& Text)
@@ -981,6 +982,10 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		// Highlight the closest interactable
 		if (HandInteractables[MotionController].GetClosestInteractable(CurrentClosest))
 		{
+			if (CurrentClosest.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
+			{
+				IVrCoreInteractableInterface::Execute_Highlight(CurrentClosest.Object, true);
+			}
 			// const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
 			// if (InteractableInterface)
 			// {
