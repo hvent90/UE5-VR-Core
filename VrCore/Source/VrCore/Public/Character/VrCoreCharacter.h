@@ -26,12 +26,16 @@ public:
 	
 	// Input
 	void OnTriggerLeft();
+	UFUNCTION(BlueprintCallable, Category = "VR Core")
 	void OnTriggerRight();
 	void OnTriggerReleaseLeft();
+	UFUNCTION(BlueprintCallable, Category = "VR Core")
 	void OnTriggerReleaseRight();
 	void OnGripLeft();
+	UFUNCTION(BlueprintCallable, Category = "VR Core")
 	void OnGripRight();
 	void OnGripReleaseLeft();
+	UFUNCTION(BlueprintCallable, Category = "VR Core")
 	void OnGripReleaseRight();
 	void OnPrimaryButtonLeft();
 	void OnPrimaryButtonRight();

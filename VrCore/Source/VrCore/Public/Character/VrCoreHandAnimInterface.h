@@ -26,4 +26,10 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
 	void ClearPose();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
+	void PointToLocation(FVector Location);
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
+	void StopPointing();
 };

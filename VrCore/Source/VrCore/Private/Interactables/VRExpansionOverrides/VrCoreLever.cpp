@@ -68,6 +68,11 @@ void UVrCoreLever::SendThumbstickAxis_Implementation(float X, float Y)
 	}
 }
 
+UVrCoreInteractionDataAsset* UVrCoreLever::GetTooltip_Implementation()
+{
+	return InteractionDataAsset;
+}
+
 void UVrCoreLever::ChangeLeverReturnTypeWhenReleased(EVRInteractibleLeverReturnType ReturnType)
 {
 	LeverReturnTypeWhenReleased = ReturnType;
@@ -81,6 +86,16 @@ void UVrCoreLever::ChangeLeverReturnTypeWhenReleased(EVRInteractibleLeverReturnT
 	}
 }
 
+void UVrCoreLever::PrimaryLongPress()
+{
+	OnPrimaryLongPress.Broadcast(true);
+}
+
+void UVrCoreLever::SecondaryLongPress()
+{
+	OnSecondaryLongPress.Broadcast(true);
+}
+
 void UVrCoreLever::OnRep_Trigger()
 {
 	OnTrigger.Broadcast(bTriggerPressed);
@@ -88,12 +103,48 @@ void UVrCoreLever::OnRep_Trigger()
 
 void UVrCoreLever::OnRep_PrimaryButton()
 {
-	OnPrimary.Broadcast(bPrimaryButtonPressed);
+	if (bPrimaryButtonPressed)
+	{
+		PrimaryPressTime = GetWorld()->GetTimeSeconds();
+		GetWorld()->GetTimerManager().SetTimer(PrimaryTimerHandle, this, &UVrCoreLever::PrimaryLongPress, LongPressTimeThreshold);
+	}
+	else
+	{
+		GetWorld()->GetTimerManager().ClearTimer(PrimaryTimerHandle);
+
+		if (GetWorld()->GetTimeSeconds() - PrimaryPressTime > LongPressTimeThreshold)
+		{
+			OnPrimaryLongPress.Broadcast(false);
+		}
+		else
+		{
+			OnPrimary.Broadcast(true);
+			OnPrimary.Broadcast(false);
+		}
+	}
 }
 
 void UVrCoreLever::OnRep_SecondaryButton()
 {
-	OnSecondary.Broadcast(bSecondaryButtonPressed);
+	if (bSecondaryButtonPressed)
+	{
+		SecondaryPressTime = GetWorld()->GetTimeSeconds();
+		GetWorld()->GetTimerManager().SetTimer(SecondaryTimerHandle, this, &UVrCoreLever::SecondaryLongPress, LongPressTimeThreshold);
+	}
+	else
+	{
+		GetWorld()->GetTimerManager().ClearTimer(SecondaryTimerHandle);
+
+		if (GetWorld()->GetTimeSeconds() - SecondaryPressTime > LongPressTimeThreshold)
+		{
+			OnSecondaryLongPress.Broadcast(false);
+		}
+		else
+		{
+			OnSecondary.Broadcast(true);
+			OnSecondary.Broadcast(false);
+		}
+	}
 }
 
 void UVrCoreLever::OnRep_ThumbstickPress()

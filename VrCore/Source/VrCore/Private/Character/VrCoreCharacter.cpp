@@ -319,7 +319,7 @@ void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
 void AVrCoreCharacter::Sit_Implementation(USceneComponent* Seat)
 {
 	Server_SetSeatedMode(Seat, true, FTransform(),
-VRReplicatedCamera->GetRelativeTransform(), 1000, 1000);
+VRReplicatedCamera->GetRelativeTransform(), 0, 0);
 }
 
 void AVrCoreCharacter::Eject_Implementation(FVector ExitLocation, FRotator ExitRotation)

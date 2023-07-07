@@ -8,12 +8,16 @@
 
 #include "Grippables/HandSocketComponent.h"
 #include "Interactables/VrCoreInteractionTooltip.h"
+#include "Sound/SoundCue.h"
 #include "UVrCoreHandManager.generated.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogHandManagerVisualLog, Log, All);
 
-struct FHandInteractable
+USTRUCT(BlueprintType)
+struct VRCORE_API FHandInteractable
 {
+	GENERATED_BODY()
+	
 	UObject* Object;
 	UStaticMeshComponent* Mesh;
 	float Distance;
@@ -24,6 +28,19 @@ struct FHandInteractable
 
 	FHandInteractable(UObject* _Object, UStaticMeshComponent* _Mesh, float _Distance, FTransform _WorldTransform) :
 	 Object(_Object), Mesh(_Mesh), Distance(_Distance), WorldTransform(_WorldTransform) {};
+
+	bool Valid() const
+	{
+		return IsValid(Object);
+	}
+};
+
+UENUM()
+enum EHandInteractableType
+{
+	None,
+	NonGrippable,
+	Grippable
 };
 
 struct FHandInteractables
@@ -33,6 +50,10 @@ struct FHandInteractables
 
 	bool GetClosestGrippable(FHandInteractable& Grippable);
 	bool GetClosestInteractable(FHandInteractable& Interactable);
+	EHandInteractableType GetClosest(FHandInteractable& Interactable);
+
+	bool ShouldInteractWithNonGrippableInteractable(FHandInteractable& NonGrippable, FHandInteractable& Grippable);
+	
 	/**
 	 * The closest interactable object that can receive a trigger input wihtout being gripped.
 	 * This is normally a switch that is flicked with the trigger button.
@@ -69,6 +90,11 @@ public:
 	UFUNCTION()
 	void OnDroppedRight(const FBPActorGripInformation& GripInformation, bool bWasSocketed);
 
+	UFUNCTION(BlueprintCallable, Category = "VR Hand Manager")
+	bool ShouldGrip(UGripMotionControllerComponent* MotionController, FHandInteractable& Grippable);
+	UFUNCTION(BlueprintCallable, Category = "VR Hand Manager")
+	bool ShouldInteract(UGripMotionControllerComponent* MotionController, FHandInteractable& Interactable);
+
 	
 
 	// Called every frame
@@ -79,22 +105,37 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	TEnumAsByte<ECollisionChannel> GripCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
 
+	UPROPERTY(EditAnywhere, Category = "VR Core|Grip")
+	FName LeftHandForwardTraceSocket = "GripTrace_Left";
+	
+	UPROPERTY(EditAnywhere, Category = "VR Core|Grip")
+	FName RightHandForwardTraceSocket = "GripTrace_Right";
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core|Grip")
+	float TraceRadius = 6;
+	
 	/** The distance in front of the player's hand to trace for grippable objects */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core|Grip")
 	float GripTraceLength = 100;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core|Grip")
 	bool bDebugGripTrace = false;
 	
 	/** The distance around a player's hand to overlap for grippable objects */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core|Grip")
 	float GripRadius = 50;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core|Grip")
 	bool bDebugGripRadius = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	UMaterialInterface* HighlightOverlayMaterial = nullptr;
+
+	// Sounds
+	UPROPERTY(EditAnywhere, Category = "VR Core|Grip")
+	USoundCue* GripSound = nullptr;
+	UPROPERTY(EditAnywhere, Category = "VR Core|Grip")
+	USoundCue* ReleaseSound = nullptr;
 
 	// Haptics
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
@@ -147,6 +188,9 @@ public:
 	void Server_HandleThumbstickPress(UGripMotionControllerComponent* MotionController, bool bPressed);
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_HandleThumbstickAxis(UGripMotionControllerComponent* MotionController, float X, float Y);
+
+	UFUNCTION(BlueprintCallable, Category = "VR Core")
+	void HydrateHandInteractables();
 	
 protected:
 	// Called when the game starts
@@ -158,8 +202,6 @@ protected:
 	bool RadialOverlapCheck(const ::UGripMotionControllerComponent* MotionController,
 	                        TArray<FHandInteractable>&,
 	                        TArray<FHandInteractable>&) const;
-
-	void HydrateHandInteractables();
 	
 	TMap<UGripMotionControllerComponent*, FHandInteractables> HandInteractables;
 	UPROPERTY()
@@ -189,10 +231,7 @@ protected:
 private:
 	TMap<EControllerHand, bool> ImpulseActivations;
 
-	inline bool IsServer() const
-	{
-		return GetOwner()->HasAuthority();
-	}
+	bool IsServer() const;
 
 	void ApplyHandPose(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, UHandSocketComponent* HandSocketComponent, const FBPActorGripInformation& GripInfo);
 	void ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable);

@@ -16,7 +16,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnThumbstickImpulse, FVector2D, Dir
 
 // This class does not need to be modified.
 UINTERFACE()
-class UVrCoreInteractableInterface : public UInterface
+class VRCORE_API UVrCoreInteractableInterface : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -83,3 +83,4 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	UVrCoreInteractionDataAsset* GetTooltip();
 };
+

@@ -19,25 +19,25 @@ class VRCORE_API UVrCoreInteractionDataAsset : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText Name;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText Description;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText Trigger;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText PrimaryButton;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText SecondaryButton;
 
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText Grip;
 	
-	UPROPERTY(EditAnywhere, Category = "Defaults")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Defaults")
 	FText Thumbstick;
 
 	virtual FPrimaryAssetId GetPrimaryAssetId() const override

@@ -24,9 +24,14 @@ public:
 	{
 		return true;
 	}
-	
+
+	virtual void BeginPlay() override;
+
 	UPROPERTY(BlueprintAssignable, Category = "VrCore")
 	FOnTriggerPressed OnTrigger;
+
+	UPROPERTY(EditAnywhere, Category = "VrCore")
+	TSoftObjectPtr<USoundCue> ActivationSound;
 
 private:
 	UPROPERTY(ReplicatedUsing=OnRep_Trigger)

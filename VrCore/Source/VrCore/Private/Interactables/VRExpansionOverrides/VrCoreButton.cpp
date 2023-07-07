@@ -3,8 +3,12 @@
 
 #include "Interactables/VRExpansionOverrides/VrCoreButton.h"
 
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Net/UnrealNetwork.h"
+#include "Sound/SoundCue.h"
 
 
 // Sets default values for this component's properties
@@ -28,6 +32,17 @@ void UVrCoreButton::SendTrigger_Implementation(bool Pressed)
 	}
 }
 
+void UVrCoreButton::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ActivationSound.IsValid() && !GetWorld()->GetGameInstance()->IsDedicatedServerInstance())
+	{
+		FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+		Streamable.RequestAsyncLoad(ActivationSound.ToSoftObjectPath());
+	}
+}
+
 void UVrCoreButton::OnRep_Trigger()
 {
 	if (bTriggerPressed)
@@ -38,6 +53,11 @@ void UVrCoreButton::OnRep_Trigger()
 		{
 			SetRelativeLocation(InitialRelativeTransform.TransformPosition(SetAxisValue(-ButtonEngageDepth)), false);
 			SetComponentTickEnabled(true);
+		}
+
+		if (ActivationSound.IsValid() && IsValid(ActivationSound.Get()))
+		{
+			UGameplayStatics::SpawnSoundAttached(ActivationSound.Get(), this);
 		}
 	}
 	

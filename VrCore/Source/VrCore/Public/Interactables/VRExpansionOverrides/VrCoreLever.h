@@ -22,6 +22,7 @@ public:
 	virtual void SendSecondaryButton_Implementation(bool Pressed) override;
 	virtual void SendThumbstickPress_Implementation(bool Pressed) override;
 	virtual void SendThumbstickAxis_Implementation(float X, float Y) override;
+	virtual UVrCoreInteractionDataAsset* GetTooltip_Implementation() override;
 	// End Interactable Interface
 
 	UFUNCTION(BlueprintCallable, Category = "VrCore")
@@ -34,7 +35,13 @@ public:
 	FOnPrimaryPressed OnPrimary;
 
 	UPROPERTY(BlueprintAssignable, Category = "VrCore")
+	FOnPrimaryPressed OnPrimaryLongPress;
+
+	UPROPERTY(BlueprintAssignable, Category = "VrCore")
 	FOnSecondaryPressed OnSecondary;
+
+	UPROPERTY(BlueprintAssignable, Category = "VrCore")
+	FOnSecondaryPressed OnSecondaryLongPress;
 
 	UPROPERTY(BlueprintAssignable, Category = "VrCore")
 	FOnThumbstickPress OnThumbstickPress;
@@ -42,7 +49,26 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "VrCore")
 	FOnThumbstickAxis OnThumbstickAxis;
 
+protected:
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VrCore")
+	UVrCoreInteractionDataAsset* InteractionDataAsset = nullptr;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VrCore")
+	float LongPressTimeThreshold = .1;
+
+	UFUNCTION()
+	void PrimaryLongPress();
+	
+	UFUNCTION()
+	void SecondaryLongPress();
+
 private:
+	FTimerHandle PrimaryTimerHandle;
+	FTimerHandle SecondaryTimerHandle;
+	
+	float PrimaryPressTime = 0;
+	float SecondaryPressTime = 0;
+	
 	UPROPERTY(ReplicatedUsing=OnRep_Trigger)
 	bool bTriggerPressed = false;
     
