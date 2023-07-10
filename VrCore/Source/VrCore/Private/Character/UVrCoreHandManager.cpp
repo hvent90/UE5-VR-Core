@@ -3,6 +3,7 @@
 
 #include "Character/UVrCoreHandManager.h"
 
+#include <functional>
 #include <string>
 
 #include "GripMotionControllerComponent.h"
