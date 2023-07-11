@@ -784,62 +784,67 @@ void UVrCoreHandManager::HandleTrigger(UGripMotionControllerComponent* MotionCon
 	}
 
 	// Handle Animation
-
+	
 	// Send trigger to gripped objects
-	TArray<UObject*> GrippedObjects;
-	MotionController->GetGrippedObjects(GrippedObjects);
-	for (UObject* GrippedObject : GrippedObjects)
 	{
-		// Check if the gripped object implements IVrCoreInteractableInterface
-		IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(GrippedObject);
-		if (InteractableInterface)
+		TArray<UObject*> GrippedObjects;
+		MotionController->GetGrippedObjects(GrippedObjects);
+		for (UObject* GrippedObject : GrippedObjects)
 		{
-			InteractableInterface->Execute_SendTrigger(GrippedObject, bPressed);
-		} else
-		{
-			// Check if the owning actor is implementing IVrCoreInteractableInterface
-			AActor* Actor = Cast<AActor>(GrippedObject);
-			if (!Actor)
-			{
-				if (const UActorComponent* Component = Cast<UActorComponent>(GrippedObject))
-				{
-					Actor = Component->GetOwner();
-				}
-			}
-			if (!Actor)
-			{
-				continue;
-			}
-			
-			InteractableInterface = Cast<IVrCoreInteractableInterface>(Actor);
+			// Check if the gripped object implements IVrCoreInteractableInterface
+			IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(GrippedObject);
 			if (InteractableInterface)
 			{
-				InteractableInterface->Execute_SendTrigger(Actor, bPressed);
+				InteractableInterface->Execute_SendTrigger(GrippedObject, bPressed);
+			} else
+			{
+				// Check if the owning actor is implementing IVrCoreInteractableInterface
+				AActor* Actor = Cast<AActor>(GrippedObject);
+				if (!Actor)
+				{
+					if (const UActorComponent* Component = Cast<UActorComponent>(GrippedObject))
+					{
+						Actor = Component->GetOwner();
+					}
+				}
+				if (!Actor)
+				{
+					continue;
+				}
+			
+				InteractableInterface = Cast<IVrCoreInteractableInterface>(Actor);
+				if (InteractableInterface)
+				{
+					InteractableInterface->Execute_SendTrigger(Actor, bPressed);
+				}
 			}
 		}
-	}
-	if (GrippedObjects.Num())
-	{
-		return;
+		
+		if (GrippedObjects.Num())
+		{
+			return;
+		}	
 	}
 
 	// Send trigger to nearest object that can be interacted without a grip
-	FHandInteractable NearestInteractableWithoutGrip;
-	if (HandInteractables[MotionController].GetClosestInteractableWithoutGrip(NearestInteractableWithoutGrip))
 	{
-		IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(
-			NearestInteractableWithoutGrip.Object);
-		if (InteractableInterface)
+		FHandInteractable NearestInteractableWithoutGrip;
+		if (HandInteractables[MotionController].GetClosestInteractableWithoutGrip(NearestInteractableWithoutGrip))
 		{
-			InteractableInterface->Execute_SendTrigger(NearestInteractableWithoutGrip.Object, bPressed);
-
-			// vibrate
-			if (TriggerWithoutGripHaptic)
+			IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(
+				NearestInteractableWithoutGrip.Object);
+			if (InteractableInterface)
 			{
-				EControllerHand HandType;
-				MotionController->GetHandType(HandType);
-				GetWorld()->GetFirstPlayerController()->PlayHapticEffect(TriggerWithoutGripHaptic, HandType);	
-			}
+				InteractableInterface->Execute_SendTrigger(NearestInteractableWithoutGrip.Object, bPressed);
+
+				// vibrate
+				if (TriggerWithoutGripHaptic)
+				{
+					EControllerHand HandType;
+					MotionController->GetHandType(HandType);
+					GetWorld()->GetFirstPlayerController()->PlayHapticEffect(TriggerWithoutGripHaptic, HandType);	
+				}
+			}	
 		}	
 	}
 }
@@ -918,7 +923,7 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
 		{
 			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVrCoreInteractableInterface");
-			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
+			const float Distance = (Actor->GetActorLocation() - Start).Size();
 			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 			
 			if (bDebugGripTrace)
@@ -930,7 +935,7 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 		if (Actor && Actor->Implements<UVRGripInterface>())
 		{
 			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVRGripInterface");
-			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
+			const float Distance = (Actor->GetActorLocation() - Start).Size();
 			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
 		}
 
@@ -939,7 +944,7 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 		if (Component && Component->Implements<UVrCoreInteractableInterface>())
 		{
 			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVrCoreInteractableInterface");
-			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
+			const float Distance = (Component->GetComponentLocation() - Start).Size();
 			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
 
 			if (bDebugGripTrace)
@@ -947,13 +952,14 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 				DrawDebugBox(GetWorld(), Component->GetComponentLocation(), FVector(10), FColor::Red, false, 0, ESceneDepthPriorityGroup::SDPG_World, 1);
 			}
 		}
-		
-		if (Component && Component->Implements<UVRGripInterface>())
-		{
-			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVRGripInterface");
-			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
-			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
-		}
+
+		// Forward trace check will only look for interactables
+		// if (Component && Component->Implements<UVRGripInterface>())
+		// {
+		// 	// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVRGripInterface");
+		// 	const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
+		// 	Grippables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
+		// }
 	}
 
 	return false;
@@ -1056,29 +1062,31 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	for (FOverlapResult OverlapResult : Overlaps)
 	{
 		AActor* Actor = OverlapResult.GetActor();
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
-		if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
-		{
-			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVrCoreInteractableInterface");
-			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
-		}
-
-		if (Actor && Actor->Implements<UVRGripInterface>())
-		{
-			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVRGripInterface");
-			const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
-		}
-
 		UPrimitiveComponent* Component = OverlapResult.GetComponent();
-		StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-		if (Component && Component->Implements<UVrCoreInteractableInterface>())
-		{
-			// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVrCoreInteractableInterface");
-			const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
-			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
-		}
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Actor->GetComponentByClass(UStaticMeshComponent::StaticClass()));
+
+		// Radial check will only look for grippables
+		// if (Actor && Actor->Implements<UVrCoreInteractableInterface>())
+		// {
+		// 	// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVrCoreInteractableInterface");
+		// 	const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
+		// 	Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
+		// }
+		//
+		// if (Actor && Actor->Implements<UVRGripInterface>())
+		// {
+		// 	// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Actor | UVRGripInterface");
+		// 	const float Distance = (Actor->GetActorLocation() - MotionController->GetComponentLocation()).Size();
+		// 	Interactables.Add(FHandInteractable(Actor, StaticMeshComponent, Distance, Actor->GetActorTransform()));
+		// }
+		//
+		// StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
+		// if (Component && Component->Implements<UVrCoreInteractableInterface>())
+		// {
+		// 	// VLogLine(GetOwner(), Start, OverlapResult.Component->GetComponentLocation(), 50, FColor::Green, "Overlap: Component | UVrCoreInteractableInterface");
+		// 	const float Distance = (Component->GetComponentLocation() - MotionController->GetComponentLocation()).Size();
+		// 	Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
+		// }
 		
 		if (Component && Component->Implements<UVRGripInterface>())
 		{
@@ -1133,12 +1141,14 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		HandInteractables[MotionController].Clear();
 		TArray<FHandInteractable> Interactables;
 		TArray<FHandInteractable> Grippables;
+		
 		ForwardTraceCheck(MotionController, Interactables, Grippables);
-		RadialOverlapCheck(MotionController, Interactables, Grippables);
 		for (const FHandInteractable Interactable : Interactables)
 		{
 			HandInteractables[MotionController].AddInteractable(Interactable);
 		}
+		
+		RadialOverlapCheck(MotionController, Interactables, Grippables);
 		for (const FHandInteractable Grippable : Grippables)
 		{
 			HandInteractables[MotionController].AddGrippable(Grippable);
@@ -1187,9 +1197,10 @@ void UVrCoreHandManager::HydrateHandInteractables()
 
 		// User Affordance (highlight, pointing)
 		FHandInteractable Closest;
-		EHandInteractableType HandInteractableType = HandInteractables[MotionController].GetClosest(Closest);
+		// EHandInteractableType HandInteractableType =
+		bool InteractableExists = HandInteractables[MotionController].GetClosestInteractableWithoutGrip(Closest);
 
-		if (HandInteractableType == NonGrippable)
+		if (InteractableExists)
 		{
 			// Point mesh towards Interactable
 			UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
@@ -1201,17 +1212,29 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			ShowInteractionTooltip(MotionController, CurrentClosest.Object);
 		}
 
-		if (HandInteractableType != NonGrippable)
-		{
-			// Stop pointing mesh towards interactable
-			UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-			if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
-			{
-				IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
-			}
+		// if (HandInteractableType == NonGrippable)
+		// {
+		// 	// Point mesh towards Interactable
+		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
+		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
+		// 	{
+		// 		IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, Closest.WorldTransform.GetLocation());
+		// 	}
+		//
+		// 	ShowInteractionTooltip(MotionController, CurrentClosest.Object);
+		// }
 
-			TeardownInteractableTooltip();
-		}
+		// if (HandInteractableType != NonGrippable)
+		// {
+		// 	// Stop pointing mesh towards interactable
+		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
+		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
+		// 	{
+		// 		IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
+		// 	}
+		//
+		// 	TeardownInteractableTooltip();
+		// }
 
 		if (Closest.Valid())
 		{
