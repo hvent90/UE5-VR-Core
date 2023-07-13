@@ -1196,146 +1196,45 @@ void UVrCoreHandManager::HydrateHandInteractables()
 #endif
 
 		// User Affordance (highlight, pointing)
-		FHandInteractable Closest;
-		// EHandInteractableType HandInteractableType =
-		bool InteractableExists = HandInteractables[MotionController].GetClosestInteractableWithoutGrip(Closest);
-
-		if (InteractableExists)
 		{
-			// Point mesh towards Interactable
+			FHandInteractable Closest;
+			bool InteractableExists = HandInteractables[MotionController].GetClosestInteractableWithoutGrip(Closest);
 			UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-			if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
+			bool bImplementsInterface = IsValid(AnimInstance) && AnimInstance->Implements<UVrCoreHandAnimInterface>();
+			
+			if (InteractableExists)
 			{
-				IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, Closest.WorldTransform.GetLocation());
+				// Point mesh towards Interactable
+				if (bImplementsInterface)
+				{
+					IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, Closest.WorldTransform.GetLocation());
+				}
+
+				ShowInteractionTooltip(MotionController, CurrentClosest.Object);
+			} else
+			{
+				// Stop pointing towards Interactable
+				if (bImplementsInterface)
+				{
+					IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
+				}
 			}
 
-			ShowInteractionTooltip(MotionController, CurrentClosest.Object);
-		}
-
-		// if (HandInteractableType == NonGrippable)
-		// {
-		// 	// Point mesh towards Interactable
-		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
-		// 	{
-		// 		IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, Closest.WorldTransform.GetLocation());
-		// 	}
-		//
-		// 	ShowInteractionTooltip(MotionController, CurrentClosest.Object);
-		// }
-
-		// if (HandInteractableType != NonGrippable)
-		// {
-		// 	// Stop pointing mesh towards interactable
-		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
-		// 	{
-		// 		IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
-		// 	}
-		//
-		// 	TeardownInteractableTooltip();
-		// }
-
-		if (Closest.Valid())
-		{
-			// Highlight via Interface
-			if (Closest.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
+			if (Closest.Valid())
 			{
-				IVrCoreInteractableInterface::Execute_Highlight(Closest.Object, true);
-			}
+				// Highlight via Interface
+				if (Closest.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
+				{
+					IVrCoreInteractableInterface::Execute_Highlight(Closest.Object, true);
+				}
 
-			// Highlight via Overlay Material
-			if (HighlightOverlayMaterial && Closest.Mesh)
-			{
-				Closest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
+				// Highlight via Overlay Material
+				if (HighlightOverlayMaterial && Closest.Mesh)
+				{
+					Closest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
+				}
 			}
 		}
-		
-		// FHandInteractable NonGrippable;
-		// FHandInteractable Grippable;
-		// if (HandInteractables[MotionController].ShouldInteractWithNonGrippableInteractable(NonGrippable, Grippable))
-		// {
-		// 	// Highlight via Interface
-		// 	if (NonGrippable.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
-		// 	{
-		// 		IVrCoreInteractableInterface::Execute_Highlight(NonGrippable.Object, true);
-		// 	}
-		//
-		// 	// Highlight via Overlay Material
-		// 	if (HighlightOverlayMaterial && NonGrippable.Mesh)
-		// 	{
-		// 		NonGrippable.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
-		// 	}
-		//
-		// 	// Point mesh towards Interactable
-		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
-		// 	{
-		// 		IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, NonGrippable.WorldTransform.GetLocation());
-		// 	}
-		//
-		// 	// Tooltip
-		// 	// ShowInteractionTooltip(MotionController, NonGrippable.Object);
-		// }
-		// else
-		// {
-		// 	// Stop pointing mesh towards interactable
-		// 	UAnimInstance* AnimInstance = HandMeshes[MotionController]->GetAnimInstance();
-		// 	if (AnimInstance && AnimInstance->Implements<UVrCoreHandAnimInterface>())
-		// 	{
-		// 		IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
-		// 	}
-		// 	
-		// 	// Remove Non Grippable Tooltip
-		// 	// TeardownInteractableTooltip();
-		// }
-		//
-		// // Highlight the closest interactable
-		// if (HandInteractables[MotionController].GetClosestInteractable(CurrentClosest))
-		// {
-		// 	if (CurrentClosest.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
-		// 	{
-		// 		IVrCoreInteractableInterface::Execute_Highlight(CurrentClosest.Object, true);
-		// 	}
-		// 	// const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-		// 	// if (InteractableInterface)
-		// 	// {
-		// 	// 	InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
-		// 	// }
-		// 	// else
-		// 	// {
-		// 		if (HighlightOverlayMaterial && CurrentClosest.Mesh)
-		// 		{
-		// 			CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
-		// 		}
-		// 	// }
-		// }
-		//
-		// // Show tooltip for closest interactable without grip
-		// if (HandInteractables[MotionController].GetClosestInteractableWithoutGrip(CurrentClosest))
-		// {
-		// 	ShowInteractionTooltip(MotionController, CurrentClosest.Object);
-		// }
-		// else
-		// {
-		// 	TeardownInteractableTooltip();
-		// }
-		//
-		// if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
-		// {
-		// 	// const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-		// 	// if (InteractableInterface)
-		// 	// {
-		// 	// 	InteractableInterface->Execute_Highlight(CurrentClosest.Object, true);
-		// 	// }
-		// 	// else
-		// 	// {
-		// 		if (HighlightOverlayMaterial && CurrentClosest.Mesh)
-		// 		{
-		// 			CurrentClosest.Mesh->SetOverlayMaterial(HighlightOverlayMaterial);
-		// 		}
-		// 	// }
-		// }
 	}
 }
 
