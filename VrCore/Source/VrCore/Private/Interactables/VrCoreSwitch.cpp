@@ -44,13 +44,6 @@ void UVrCoreSwitch::ToggleSwitch()
 void UVrCoreSwitch::BeginPlay()
 {
 	Super::BeginPlay();
-
-	// Async load in assets
-	if (ActivationSound.IsValid() && !GetWorld()->GetGameInstance()->IsDedicatedServerInstance())
-	{
-		FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
-		Streamable.RequestAsyncLoad(ActivationSound.ToSoftObjectPath());
-	}
 }
 
 void UVrCoreSwitch::OnRep_SwitchActivation()
@@ -64,6 +57,17 @@ void UVrCoreSwitch::OnRep_SwitchActivation()
 	if (ActivationSound.IsValid() && IsValid(ActivationSound.Get()))
 	{
 		UGameplayStatics::SpawnSoundAttached(ActivationSound.Get(), this);
+	} else
+	{
+		// Async load in assets
+		if (ActivationSound.ToSoftObjectPath().IsValid())
+		{
+			FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+			Streamable.RequestAsyncLoad(ActivationSound.ToSoftObjectPath(), [this]()
+			{
+				UGameplayStatics::SpawnSoundAttached(ActivationSound.Get(), this);
+			}, FStreamableManager::AsyncLoadHighPriority);
+		}
 	}
 
 	const float DialAngle = bSwitchActivated ? ActivationAngle : 0;
