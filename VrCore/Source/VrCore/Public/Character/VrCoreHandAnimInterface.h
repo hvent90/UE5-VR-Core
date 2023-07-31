@@ -32,4 +32,10 @@ public:
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
 	void StopPointing();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
+	void WantToGrip(FVector Location);
+	
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreHandAnimInterface")
+	void StopGrip();
 };
