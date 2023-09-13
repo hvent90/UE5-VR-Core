@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Interactables/VrCoreInteractableInterface.h"
 #include "Interactibles/VRLeverComponent.h"
+#include "GripScripts/VRGripScriptBase.h"
 #include "VrCoreLever.generated.h"
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -15,6 +16,21 @@ class VRCORE_API UVrCoreLever : public UVRLeverComponent, public IVrCoreInteract
 public:
 	// Sets default values for this component's properties
 	UVrCoreLever(const FObjectInitializer& ObjectInitializer);
+
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadOnly, Instanced, Category = "VRGripInterface")
+	TArray<TObjectPtr<UVRGripScriptBase>> GripLogicScripts;
+
+	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "VRGripInterface")
+	bool bReplicateGripScripts;
+
+	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
+	virtual bool ReplicateSubobjects(UActorChannel* Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags) override;
+
+	virtual void EndPlay(EEndPlayReason::Type Reason) override;
+	virtual void BeginPlay() override;
+
+	// Get grip scripts
+	virtual bool GetGripScripts_Implementation(TArray<UVRGripScriptBase*>& ArrayReference) override;
 	
 	// Interactable interface
 	virtual void SendTrigger_Implementation(bool Pressed) override;

@@ -22,10 +22,10 @@ class VRCORE_API IVrCoreSittableInterface
 
 public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreSittableInterface")
-	void Sit(USceneComponent* Seat);
+	void Sit(AActor* TiredPerson, USceneComponent* Seat);
 	
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreSittableInterface")
-	void Eject(FVector ExitLocation, FRotator ExitRotation);
+	void Eject(AActor* WakefulPerson, USceneComponent* Seat, FVector _ExitLocation, FRotator _ExitRotation);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreSittableInterface")
 	FVector GetInitialRelativeLocation();

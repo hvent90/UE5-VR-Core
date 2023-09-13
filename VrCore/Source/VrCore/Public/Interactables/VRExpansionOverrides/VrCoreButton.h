@@ -7,6 +7,8 @@
 #include "Interactibles/VRButtonComponent.h"
 #include "VrCoreButton.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHighlight, bool, Visible, USkeletalMeshComponent*, Hand);
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class VRCORE_API UVrCoreButton : public UVRButtonComponent, public IVrCoreInteractableInterface
 {
@@ -32,6 +34,11 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "VrCore")
 	TSoftObjectPtr<USoundCue> ActivationSound;
+
+	virtual bool Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand) override;
+
+	UPROPERTY(BlueprintAssignable, Category = "VrCore")
+	FOnHighlight OnHighlight;
 
 private:
 	UPROPERTY(ReplicatedUsing=OnRep_Trigger)

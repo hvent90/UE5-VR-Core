@@ -15,7 +15,15 @@ UVrCoreLever::UVrCoreLever(const FObjectInitializer& ObjectInitializer) :
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
+	bReplicateGripScripts = false;
+
 	// ...
+}
+
+bool UVrCoreLever::GetGripScripts_Implementation(TArray<UVRGripScriptBase*>& ArrayReference)
+{
+	ArrayReference = GripLogicScripts;
+	return GripLogicScripts.Num() > 0;
 }
 
 void UVrCoreLever::SendTrigger_Implementation(bool Pressed)
@@ -161,6 +169,7 @@ void UVrCoreLever::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLi
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
+	DOREPLIFETIME_CONDITION(UVrCoreLever, GripLogicScripts, COND_Custom);
 	DOREPLIFETIME(UVrCoreLever, bTriggerPressed);
 	DOREPLIFETIME(UVrCoreLever, bPrimaryButtonPressed);
 	DOREPLIFETIME(UVrCoreLever, bSecondaryButtonPressed);
@@ -168,3 +177,59 @@ void UVrCoreLever::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLi
 	DOREPLIFETIME(UVrCoreLever, ThumbstickAxis);
 }
 
+void UVrCoreLever::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
+{
+	Super::PreReplication(ChangedPropertyTracker);
+
+	DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(UVrCoreLever, GripLogicScripts, bReplicateGripScripts);
+}
+
+bool UVrCoreLever::ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags)
+{
+	bool WroteSomething = Super::ReplicateSubobjects(Channel, Bunch, RepFlags);
+	//
+	// if (bReplicateGripScripts)
+	// {
+	// 	for (UVRGripScriptBase* Script : GripLogicScripts)
+	// 	{
+	// 		if (Script && IsValid(Script))
+	// 		{
+	// 			WroteSomething |= Channel->ReplicateSubobject(Script, *Bunch, *RepFlags);
+	// 		}
+	// 	}
+	// }
+
+	return WroteSomething;
+}
+
+void UVrCoreLever::EndPlay(EEndPlayReason::Type Reason)
+{
+	// Call the base class 
+	Super::EndPlay(Reason);
+
+	// Call all grip scripts begin play events so they can perform any needed logic
+	for (UVRGripScriptBase* Script : GripLogicScripts)
+	{
+		if (Script)
+		{
+			Script->EndPlay(Reason);
+		}
+	}
+}
+
+void UVrCoreLever::BeginPlay()
+{
+	// Call the base class 
+	Super::BeginPlay();
+
+	// Call all grip scripts begin play events so they can perform any needed logic
+	for (UVRGripScriptBase* Script : GripLogicScripts)
+	{
+		if (Script)
+		{
+			Script->BeginPlay(this);
+		}
+	}
+
+	bOriginalReplicatesMovement = bReplicateMovement;
+}

@@ -54,7 +54,7 @@ public:
 	                           FActorComponentTickFunction* ThisTickFunction) override;
 
 	// Interactable interface
-	virtual bool Highlight_Implementation(bool Visible) override;
+	virtual bool Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand) override;
 	virtual bool IsInteractableWithoutGrip_Implementation() override;
 
 	// Interactable interface

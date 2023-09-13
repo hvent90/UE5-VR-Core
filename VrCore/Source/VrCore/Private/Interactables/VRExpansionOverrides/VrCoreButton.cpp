@@ -43,6 +43,13 @@ void UVrCoreButton::BeginPlay()
 	}
 }
 
+bool UVrCoreButton::Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand)
+{
+	OnHighlight.Broadcast(Visible, Hand);
+	
+	return IVrCoreInteractableInterface::Highlight_Implementation(Visible, Hand);
+}
+
 void UVrCoreButton::OnRep_Trigger()
 {
 	if (bTriggerPressed)

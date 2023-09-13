@@ -58,8 +58,8 @@ public:
 	void OnThumbstickAxisY(EControllerHand Hand, float Value);
 
 	// Sitting
-	virtual void Sit_Implementation(USceneComponent* Seat) override;
-	virtual void Eject_Implementation(FVector ExitLocation, FRotator ExitRotation) override;
+	virtual void Sit_Implementation(AActor* TiredPerson, USceneComponent* Seat) override;
+	virtual void Eject_Implementation(AActor* WakefulPerson, USceneComponent* Chair, FVector ExitLocation, FRotator ExitRotation) override;
 	virtual FVector GetInitialRelativeLocation_Implementation() override;
 
 protected:

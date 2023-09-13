@@ -991,7 +991,7 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			if (HandInteractables[MotionController].GetClosestInteractable(CurrentClosest))
 			{
 				const IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-				if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false)))
+				if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false, nullptr)))
 				{
 					if (IsValid(CurrentClosest.Mesh) && IsValid(HighlightOverlayMaterial) && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
 					{
@@ -1003,7 +1003,7 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			if (HandInteractables[MotionController].GetClosestGrippable(CurrentClosest))
 			{
 				IVrCoreInteractableInterface* InteractableInterface = Cast<IVrCoreInteractableInterface>(CurrentClosest.Object);
-				if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false)))
+				if (!(InteractableInterface && InteractableInterface->Execute_Highlight(CurrentClosest.Object, false, nullptr)))
 				{
 					if (IsValid(CurrentClosest.Mesh) && IsValid(HighlightOverlayMaterial) && CurrentClosest.Mesh->GetOverlayMaterial() == HighlightOverlayMaterial)
 					{
@@ -1119,7 +1119,7 @@ void UVrCoreHandManager::HydrateHandInteractables()
 				// Highlight via Interface
 				if (Closest.Object->GetClass()->ImplementsInterface(UVrCoreInteractableInterface::StaticClass()))
 				{
-					IVrCoreInteractableInterface::Execute_Highlight(Closest.Object, true);
+					IVrCoreInteractableInterface::Execute_Highlight(Closest.Object, true, HandMeshes[MotionController]);
 				}
 
 				// Highlight via Overlay Material

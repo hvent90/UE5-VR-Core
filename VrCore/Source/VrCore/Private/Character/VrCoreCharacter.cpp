@@ -316,13 +316,13 @@ void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
 	}
 }
 
-void AVrCoreCharacter::Sit_Implementation(USceneComponent* Seat)
+void AVrCoreCharacter::Sit_Implementation(AActor* TiredPerson, USceneComponent* Seat)
 {
 	Server_SetSeatedMode(Seat, true, FTransform(),
 VRReplicatedCamera->GetRelativeTransform(), 0, 0);
 }
 
-void AVrCoreCharacter::Eject_Implementation(FVector ExitLocation, FRotator ExitRotation)
+void AVrCoreCharacter::Eject_Implementation(AActor* WakefulPerson, USceneComponent* Chair, FVector ExitLocation, FRotator ExitRotation)
 {
 	FTransform ExitTransform;
 	ExitTransform.SetLocation(ExitLocation);

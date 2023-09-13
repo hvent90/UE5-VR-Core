@@ -36,7 +36,12 @@ void UVrCoreWidgetComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	// ...
 }
 
-bool UVrCoreWidgetComponent::Highlight_Implementation(bool Visible)
+// bool UVrCoreWidgetComponent::Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand)
+// {
+// 	return IVrCoreInteractableInterface::Highlight_Implementation(Visible, Hand);
+// }
+
+bool UVrCoreWidgetComponent::Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand)
 {
 	UWidget* VrCoreWidget = GetWidget();
 	if (IsValid(VrCoreWidget) && VrCoreWidget->GetClass()->ImplementsInterface(UVrCoreWidgetInterface::StaticClass()))

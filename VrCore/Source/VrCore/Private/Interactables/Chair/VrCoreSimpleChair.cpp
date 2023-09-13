@@ -63,7 +63,7 @@ bool AVrCoreSimpleChair::Sit_Implementation(USceneComponent* Chair, AActor* Hope
 		// TODO: Manual attachment
 	} else
 	{
-		SitInterface->Execute_Sit(HopefulTenant, Chair);
+		// SitInterface->Execute_Sit(HopefulTenant, Chair);
 		Seats[Chair].InitialRelativeLocation = SitInterface->Execute_GetInitialRelativeLocation(HopefulTenant);
 	}
 
@@ -99,8 +99,8 @@ bool AVrCoreSimpleChair::Eject_Implementation(AActor* Tenant)
 				// TODO: Manual attachment
 			} else
 			{
-				SitInterface->Execute_Eject(Tenant, ExitLocation->GetComponentLocation(),
-					ExitLocation->GetComponentRotation());	
+				// SitInterface->Execute_Eject(Tenant, ExitLocation->GetComponentLocation(),
+					// ExitLocation->GetComponentRotation());	
 			}
 
 			// Unregister tenant

@@ -31,7 +31,7 @@ void AVrCoreInteractable::BeginPlay()
 	Tip->SetVisibility(false);
 }
 
-bool AVrCoreInteractable::Highlight_Implementation(bool Visible)
+bool AVrCoreInteractable::Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand)
 {
 	const bool bShowTip = Visible && bUseTip;
 	Tip->SetVisibility(bShowTip);

@@ -45,7 +45,7 @@ public:
 	 * @return 
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
-	bool Highlight(bool Visible);
+	bool Highlight(bool Visible, USkeletalMeshComponent* Hand);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreInteractableInterface")
 	void SendTrigger(bool Pressed);

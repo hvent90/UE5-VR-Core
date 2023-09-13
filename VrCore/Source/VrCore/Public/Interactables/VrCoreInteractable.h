@@ -19,7 +19,7 @@ public:
 	AVrCoreInteractable();
 
 	// Interactable interface
-	virtual bool Highlight_Implementation(bool Visible) override;
+	virtual bool Highlight_Implementation(bool Visible, USkeletalMeshComponent* Hand) override;
 	virtual bool IsInteractableWithoutGrip_Implementation() override;
 
 	virtual void TickActor(float DeltaTime, ELevelTick TickType, FActorTickFunction& ThisTickFunction) override;
