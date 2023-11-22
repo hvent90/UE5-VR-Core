@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VrCoreTypes.h"
 #include "Interactables/VrCoreInteractableInterface.h"
 #include "Interactibles/VRButtonComponent.h"
 #include "VrCoreButton.generated.h"

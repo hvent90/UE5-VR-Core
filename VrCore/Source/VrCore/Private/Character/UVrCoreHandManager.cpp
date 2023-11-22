@@ -8,10 +8,12 @@
 
 #include "GripMotionControllerComponent.h"
 #include "Character/VrCoreHandAnimInterface.h"
+#include "Components/TextRenderComponent.h"
 #include "Grippables/HandSocketComponent.h"
 #include "Haptics/HapticFeedbackEffect_Base.h"
 #include "Interactables/VrCoreInteractableInterface.h"
 #include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 void VLogLine(const AActor* Owner, const FVector& Start, const FVector& End, const float Size, const FColor& Color, const FString& Text)
 {
@@ -116,7 +118,7 @@ EHandInteractableType FHandInteractables::GetClosest(FHandInteractable& Interact
 
 	if (!NonGrippable.Valid() && !Grippable.Valid())
 	{
-		return EHandInteractableType::None;
+		return EHandInteractableType::None_IDK;
 	}
 
 	if (bShouldInteractWithNonGrippable)
@@ -189,7 +191,7 @@ UVrCoreHandManager::UVrCoreHandManager()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 
-	// ...
+	SetTickGroup(TG_LastDemotable);
 }
 
 void UVrCoreHandManager::RegisterMotionControllers(UGripMotionControllerComponent* LeftSource,
@@ -356,7 +358,7 @@ void UVrCoreHandManager::ApplyHandPose(UGripMotionControllerComponent* MotionCon
 			case EGripTargetType::ComponentGrip:
 				if (GrippedComponent)
 				{
-					Mesh->AttachToComponent(GrippedComponent, FAttachmentTransformRules::KeepWorldTransform);
+					Mesh->AttachToComponent(GrippedComponent, FAttachmentTransformRules::KeepWorldTransform, GripInfo.SlotName);
 
 					const FTransform MeshTransform = HandSocketComponent->GetMeshRelativeTransform(Hand == EControllerHand::Right);
 					Mesh->SetRelativeLocationAndRotation(MeshTransform.GetLocation(), MeshTransform.GetRotation().Rotator());
@@ -376,14 +378,158 @@ void UVrCoreHandManager::ApplyHandPose(UGripMotionControllerComponent* MotionCon
 	}
 }
 
+void UVrCoreHandManager::TickSimpleTooltip() const
+{
+	TArray<UTextRenderComponent*> TextRenderComponents;
+	if (IsValid(LeftTextTooltip))
+	{
+		TextRenderComponents.Add(LeftTextTooltip);
+	}
+	if (IsValid(RightTextTooltip))
+    {
+    	TextRenderComponents.Add(RightTextTooltip);
+    }
+
+	const FVector CameraLocation = GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetTransformComponent()->GetComponentLocation();
+	for (UTextRenderComponent* TextRenderComponent : TextRenderComponents)
+	{
+		FTransform Transform = TextRenderComponent->GetComponentTransform();
+		FRotator WorldLookAtRotation = UKismetMathLibrary::FindLookAtRotation(TextRenderComponent->GetComponentLocation(), CameraLocation);
+		FRotator RelativeLookAtRotation = Transform.InverseTransformRotation(WorldLookAtRotation.Quaternion()).Rotator();
+		
+		// TextRenderComponent->SetRelativeRotation(RelativeLookAtRotation); //  + FingerTooltipOffsetRotation
+
+		TextRenderComponent->SetWorldRotation(WorldLookAtRotation);
+	
+		// DrawDebugBox(GetWorld(), TextRenderComponent->GetComponentLocation(), FVector(5), FColor::Red, false, .1, ESceneDepthPriorityGroup::SDPG_World, 1);
+	}
+}
+
+void UVrCoreHandManager::CleanupSimpleTooltip(UGripMotionControllerComponent* MotionController)
+{
+	EControllerHand Hand;
+	MotionController->GetHandType(Hand);
+
+	UTextRenderComponent* TextRenderComponent = nullptr;
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		TextRenderComponent = LeftTextTooltip;
+		break;
+	case EControllerHand::Right:
+		TextRenderComponent = RightTextTooltip;
+		break;
+	}
+
+	if (!IsValid(TextRenderComponent))
+	{
+		return;
+	}
+	
+	TextRenderComponent->DestroyComponent();
+}
+
+bool UVrCoreHandManager::ShowSimpleTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable)
+{
+	if (!IsValid(Interactable) || !IsValid(MotionController))
+	{
+		return false;
+	}
+	
+	EControllerHand Hand;
+	MotionController->GetHandType(Hand);
+
+	UTextRenderComponent* TextRenderComponent = nullptr;
+	FName Bone;
+	switch (Hand)
+	{
+	case EControllerHand::Left:
+		if (Interactable == LeftHandSimpleTooltipSource && IsValid(LeftTextTooltip))
+		{
+			return true;
+		}
+		LeftHandSimpleTooltipSource = Interactable;
+		TextRenderComponent = LeftTextTooltip;
+		Bone = LeftBoneTooltip;
+		break;
+	case EControllerHand::Right:
+		if (Interactable == RightHandSimpleTooltipSource && IsValid(RightTextTooltip))
+		{
+			return true;
+		}
+		RightHandSimpleTooltipSource = Interactable;
+		TextRenderComponent = RightTextTooltip;
+		Bone = RightBoneTooltip;
+		break;
+	default:
+		return false;
+	}
+
+	const IVrCoreInteractionTooltipInterface* TooltipInterface = Cast<IVrCoreInteractionTooltipInterface>(Interactable);
+	if (!TooltipInterface)
+	{
+		return false;
+	}
+
+	FText Name;
+	if (!TooltipInterface->Execute_ShouldUseSimpleName(Interactable, Name))
+	{
+		return false;
+	}
+
+	if (!IsValid(TextRenderComponent))
+	{
+		TextRenderComponent = NewObject<UTextRenderComponent>(GetOwner());
+		if (IsValid(TextRenderComponent))
+		{
+			TextRenderComponent->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+			TextRenderComponent->RegisterComponent();
+		}
+	}
+
+	if (IsValid(TextRenderComponent))
+	{
+		const FAttachmentTransformRules TransformRules(EAttachmentRule::KeepRelative, true);
+		TextRenderComponent->AttachToComponent(HandMeshes[MotionController], TransformRules, Bone);
+
+		FTransform OffsetTransform;
+		OffsetTransform.SetLocation(FingerTooltipOffsetLocation);
+		OffsetTransform.SetRotation(FingerTooltipOffsetRotation.Quaternion());
+		OffsetTransform.SetScale3D(FVector(1));
+		TextRenderComponent->SetRelativeTransform(OffsetTransform);
+		TextRenderComponent->SetWorldScale3D(FVector(1));
+
+		TextRenderComponent->SetTextMaterial(SimpleTooltipTextMaterial);
+		TextRenderComponent->SetText(Name);
+		TextRenderComponent->SetWorldSize(FingerTooltipFontSize);
+		
+		switch (Hand)
+		{
+		case EControllerHand::Left:
+			LeftTextTooltip = TextRenderComponent;
+			break;
+		case EControllerHand::Right:
+			RightTextTooltip = TextRenderComponent;
+			break;
+		}
+	}
+	
+	return true;
+}
+
 void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable)
 {
+	if (ShowSimpleTooltip(MotionController, Interactable))
+	{
+		return;
+	}
+	
 	const UVrCoreInteractionTooltipInterface* TooltipInterface = Cast<UVrCoreInteractionTooltipInterface>(Interactable);
 	if (!IsValid(TooltipInterface))
 	{
 		return;
 	}
-	
+
 	const UVrCoreInteractionDataAsset* InteractionDataAsset = IVrCoreInteractableInterface::Execute_GetTooltip(Interactable);
 	USceneComponent* InteractableComponent = Cast<USceneComponent>(Interactable);
 	if (!IsValid(InteractableComponent))
@@ -409,7 +555,7 @@ void UVrCoreHandManager::ShowInteractionTooltip(UGripMotionControllerComponent* 
 			UE_LOG(LogTemp, Error, TEXT("Tooltip not found"));
 			return;
 		}
-
+		
 		TooltipParentComponent = InteractableComponent;
 		
 		IVrCoreInteractionTooltipInterface::Execute_SetGripAction(InteractionTooltip, InteractionDataAsset->Grip);
@@ -611,6 +757,7 @@ bool UVrCoreHandManager::HandleThumbstickAxis(UGripMotionControllerComponent* Mo
 	if (!IsServer())
 	{
 		Server_HandleThumbstickAxis(MotionController, X, Y);
+		return false;
 	}
 
 	// Handle Animation
@@ -880,7 +1027,7 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	}
 
 	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(GetOwner());
+	// Params.AddIgnoredActor(GetOwner());
 	Params.bDebugQuery = bDebugGripRadius;
 
 	FName SocketName = MotionController == LeftMotionController ? LeftHandForwardTraceSocket : RightHandForwardTraceSocket;
@@ -903,7 +1050,7 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	TArray<FOverlapResult> Overlaps;
 	const bool Overlap = World->OverlapMultiByChannel(Overlaps,
 	                                                  Start, FQuat(),
-	                                                  GripCollisionChannel, FCollisionShape::MakeSphere(TraceRadius), Params);
+	                                                  InteractableCollisionChannel, FCollisionShape::MakeSphere(TraceRadius), Params);
 	if (!Overlap)
 	{
 		return false;
@@ -914,11 +1061,11 @@ bool UVrCoreHandManager::ForwardTraceCheck(UGripMotionControllerComponent* Motio
 	{
 		
 		UPrimitiveComponent* Component = OverlapResult.GetComponent();
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-		if (IsValid(Component) && IsValid(StaticMeshComponent) && Component->Implements<UVrCoreInteractableInterface>() && IVrCoreInteractableInterface::Execute_IsInteractableWithoutGrip(Component))
+		UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
+		if (IsValid(Component) && Component->Implements<UVrCoreInteractableInterface>() && IVrCoreInteractableInterface::Execute_IsInteractableWithoutGrip(Component))
 		{
 			const float Distance = (Component->GetComponentLocation() - Start).Size();
-			Interactables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
+			Interactables.Add(FHandInteractable(Component, MeshComponent, Distance, Component->GetComponentTransform()));
 
 			if (bDebugGripTrace)
 			{
@@ -954,6 +1101,7 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	const bool Overlap = World->OverlapMultiByChannel(Overlaps,
 	                                                  Start, FQuat(),
 	                                                  GripCollisionChannel, FCollisionShape::MakeSphere(GripRadius), Params);
+	
 	if (!Overlap)
 	{
 		return false;
@@ -963,11 +1111,11 @@ bool UVrCoreHandManager::RadialOverlapCheck(const ::UGripMotionControllerCompone
 	for (FOverlapResult OverlapResult : Overlaps)
 	{
 		UPrimitiveComponent* Component = OverlapResult.GetComponent();
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component);
-		if (IsValid(Component) && IsValid(StaticMeshComponent) && Component->Implements<UVRGripInterface>())
+		UMeshComponent* MeshComponent = Cast<UMeshComponent>(Component);
+		if (IsValid(Component) && Component->Implements<UVRGripInterface>())
 		{
 			const float Distance = (Component->GetComponentLocation() - Start).Size();
-			Grippables.Add(FHandInteractable(Component, StaticMeshComponent, Distance, Component->GetComponentTransform()));
+			Grippables.Add(FHandInteractable(Component, MeshComponent, Distance, Component->GetComponentTransform()));
 
 			if (bDebugGripTrace)
 			{
@@ -1018,6 +1166,9 @@ void UVrCoreHandManager::HydrateHandInteractables()
 		{
 			continue;
 		}
+
+		FHandInteractable PreviousClosest;
+		HandInteractables[MotionController].GetClosest(PreviousClosest);
 
 		// Catalogue nearest interactable and grippable items
 		{
@@ -1089,21 +1240,49 @@ void UVrCoreHandManager::HydrateHandInteractables()
 
 			if (bImplementsInterface)
 			{
+				FTimerHandle RumbleHandle;
+				EControllerHand HandType;
+				MotionController->GetHandType(HandType);
+				APlayerController* PC = GetWorld()->GetFirstPlayerController();
+				
 				switch (InteractableType)
 				{
-				case None:
+				case None_IDK:
 					IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
 					IVrCoreHandAnimInterface::Execute_StopGrip(AnimInstance);
 					break;
 				case NonGrippable:
 					IVrCoreHandAnimInterface::Execute_StopGrip(AnimInstance);
 					IVrCoreHandAnimInterface::Execute_PointToLocation(AnimInstance, Closest.WorldTransform.GetLocation());
+					if (bDebugGripTrace)
+					{
+						DrawDebugLine(GetWorld(), HandMeshes[MotionController]->GetComponentLocation(), Closest.WorldTransform.GetLocation(), FColor::Blue, false, 0, ESceneDepthPriorityGroup::SDPG_Foreground, 1);
+					}
+					
+					if (!(Closest == PreviousClosest) && IsValid(OverlapHaptic))
+					{
+						PC->PlayHapticEffect(OverlapHaptic, HandType);
+						GetWorld()->GetTimerManager().SetTimer(RumbleHandle, [PC, HandType]()
+						{
+							PC->StopHapticEffect(HandType);
+						}, OverlapHaptic->GetDuration(), false);
+					};
 					break;
 				case Grippable:
 					IVrCoreHandAnimInterface::Execute_StopPointing(AnimInstance);
 					IVrCoreHandAnimInterface::Execute_WantToGrip(AnimInstance, Closest.WorldTransform.GetLocation());
+					if (!(Closest == PreviousClosest) && IsValid(OverlapHaptic))
+					{
+						MotionController->GetHandType(HandType);
+						GetWorld()->GetFirstPlayerController()->PlayHapticEffect(OverlapHaptic, HandType);
+						GetWorld()->GetTimerManager().SetTimer(RumbleHandle, [PC, HandType]()
+						{
+							PC->StopHapticEffect(HandType);
+						}, OverlapHaptic->GetDuration(), false);
+					};
 					break;
-				default: ;
+				default:
+					break;
 				}
 			}
 
@@ -1111,6 +1290,9 @@ void UVrCoreHandManager::HydrateHandInteractables()
 			if (Closest.Valid())
 			{
 				ShowInteractionTooltip(MotionController, Closest.Object);	
+			} else
+			{
+				CleanupSimpleTooltip(MotionController);
 			}
 
 			// Highlight the closest
@@ -1139,6 +1321,8 @@ void UVrCoreHandManager::TickComponent(float DeltaTime, ELevelTick TickType,
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	HydrateHandInteractables();
+
+	TickSimpleTooltip();
 }
 
 bool UVrCoreHandManager::AttemptGrip(UGripMotionControllerComponent* MotionController)
@@ -1179,11 +1363,9 @@ bool UVrCoreHandManager::AttemptGrip(UGripMotionControllerComponent* MotionContr
 				APlayerController* PC = World->GetFirstPlayerController();
 				PC->PlayHapticEffect(GripHaptic, HandType);
 
-				UE_LOG(LogTemp, Warning, TEXT("GRIP DURATION: %f"), GripHaptic->GetDuration());
 				FTimerHandle RumbleHandle;
 				World->GetTimerManager().SetTimer(RumbleHandle, [PC, HandType]()
 				{
-					UE_LOG(LogTemp, Warning, TEXT("GRIP STOPPED"));
 					PC->StopHapticEffect(HandType);
 				}, GripHaptic->GetDuration(), false);
 			}

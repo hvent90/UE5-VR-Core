@@ -7,6 +7,7 @@
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "SteamVRInputDeviceFunctionLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Mechs/SavedCockpitSettings.h"
 #include "Net/UnrealNetwork.h"
 
 AVrCoreCharacter::AVrCoreCharacter()
@@ -197,10 +198,10 @@ void AVrCoreCharacter::OnThumbstickAxis(EControllerHand Hand, float X, float Y)
 	 * 2. Gripped object accepts thumbstick input
 	 * 3. Usage of gripped object's thumbstick input should prevent movement
 	 */
-	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, X, Y))
-	{
-		return;
-	}
+	// if (MotionController && HandManager->HandleThumbstickAxis(MotionController, X, Y))
+	// {
+	// 	return;
+	// }
 	
 	if (!IsSeated())
 	{
@@ -239,10 +240,10 @@ void AVrCoreCharacter::OnThumbstickAxisX(EControllerHand Hand, float Value)
 	 * 2. Gripped object accepts thumbstick input
 	 * 3. Usage of gripped object's thumbstick input should prevent movement
 	 */
-	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, Value, 0))
-	{
-		return;
-	}
+	// if (MotionController && HandManager->HandleThumbstickAxis(MotionController, Value, 0))
+	// {
+	// 	return;
+	// }
 	
 	if (!IsSeated())
 	{
@@ -293,10 +294,10 @@ void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
 	 * 2. Gripped object accepts thumbstick input
 	 * 3. Usage of gripped object's thumbstick input should prevent movement
 	 */
-	if (MotionController && HandManager->HandleThumbstickAxis(MotionController, 0, Value))
-	{
-		return;
-	}
+	// if (MotionController && HandManager->HandleThumbstickAxis(MotionController, 0, Value))
+	// {
+	// 	return;
+	// }
 	
 	if (!IsSeated())
 	{
@@ -318,8 +319,23 @@ void AVrCoreCharacter::OnThumbstickAxisY(EControllerHand Hand, float Value)
 
 void AVrCoreCharacter::Sit_Implementation(AActor* TiredPerson, USceneComponent* Seat)
 {
-	Server_SetSeatedMode(Seat, true, FTransform(),
-VRReplicatedCamera->GetRelativeTransform(), 0, 0);
+	const USavedCockpitSettings* CockpitSettings = USavedCockpitSettings::LoadSettings(GetWorld());
+	// const USavedCockpitSettings* CockpitSettings = NewObject<USavedCockpitSettings>();
+	FTransform TargetTransform;
+	FTransform CameraRelativeTransform = VRReplicatedCamera->GetRelativeTransform();
+	// FTransform TargetTransform = VRReplicatedCamera->GetRelativeTransform();
+	if (IsValid(CockpitSettings))
+	{
+		// TargetTransform.SetLocation(CockpitSettings->GetSeatSettings().SeatOffset);
+		// CameraRelativeTransform.AddToTranslation(CockpitSettings->GetSeatSettings().SeatOffset); <-- uncomment
+	}
+
+	// CameraRelativeTransform = FTransform();
+	// CameraRelativeTransform = GetWorld()->GetFirstPlayerController()->PlayerCameraManager->Relative
+	
+	// DrawDebugBox(GetWorld(), Seat->GetComponentLocation(), FVector(10), FColor::Red, true, 10, 0, 10);
+	
+	Server_SetSeatedMode(Seat, true, TargetTransform, CameraRelativeTransform, 0, 0, false);
 }
 
 void AVrCoreCharacter::Eject_Implementation(AActor* WakefulPerson, USceneComponent* Chair, FVector ExitLocation, FRotator ExitRotation)
@@ -331,6 +347,11 @@ void AVrCoreCharacter::Eject_Implementation(AActor* WakefulPerson, USceneCompone
 	
 	Server_SetSeatedMode(nullptr, false,
 ExitTransform, FTransform(), 0, 0);
+}
+
+void AVrCoreCharacter::RecenterSeatedPosition_Implementation()
+{
+	
 }
 
 FVector AVrCoreCharacter::GetInitialRelativeLocation_Implementation()

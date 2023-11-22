@@ -52,7 +52,7 @@ public class VrCore : ModuleRules
 				"NetworkReplayStreaming",
 				"AIModule",
 				"UMG",
-				"GameplayTags"
+				"GameplayTags", "RoyalDivision"
 			}
 			);
 		

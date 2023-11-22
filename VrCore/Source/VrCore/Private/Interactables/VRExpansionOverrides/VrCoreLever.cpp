@@ -3,7 +3,11 @@
 
 #include "Interactables/VRExpansionOverrides/VrCoreLever.h"
 
+#include "Engine/AssetManager.h"
+#include "Engine/StreamableManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Sound/SoundCue.h"
 #include "Net/UnrealNetwork.h"
 
 
@@ -17,7 +21,7 @@ UVrCoreLever::UVrCoreLever(const FObjectInitializer& ObjectInitializer) :
 
 	bReplicateGripScripts = false;
 
-	// ...
+	SetIsReplicatedByDefault(true);
 }
 
 bool UVrCoreLever::GetGripScripts_Implementation(TArray<UVRGripScriptBase*>& ArrayReference)
@@ -34,6 +38,16 @@ void UVrCoreLever::SendTrigger_Implementation(bool Pressed)
 	{
 		OnRep_Trigger();
 	}
+
+	if (!bTriggerPressed || !IsValid(InteractionDataAsset))
+	{
+		return;
+	}
+	
+	if (InteractionDataAsset->TriggerSound.IsValid())
+	{
+		UGameplayStatics::SpawnSoundAttached(InteractionDataAsset->TriggerSound.Get(), this);
+	}
 }
 
 void UVrCoreLever::SendPrimaryButton_Implementation(bool Pressed)
@@ -44,6 +58,16 @@ void UVrCoreLever::SendPrimaryButton_Implementation(bool Pressed)
 	{
 		OnRep_PrimaryButton();
 	}
+
+	if (!bPrimaryButtonPressed || !IsValid(InteractionDataAsset))
+	{
+		return;
+	}
+	
+	if (InteractionDataAsset->PrimarySound.IsValid())
+	{
+		UGameplayStatics::SpawnSoundAttached(InteractionDataAsset->PrimarySound.Get(), this);
+	}
 }
 
 void UVrCoreLever::SendSecondaryButton_Implementation(bool Pressed)
@@ -53,6 +77,16 @@ void UVrCoreLever::SendSecondaryButton_Implementation(bool Pressed)
 	if (UKismetSystemLibrary::IsServer(GetWorld()))
 	{
 		OnRep_SecondaryButton();
+	}
+
+	if (!bSecondaryButtonPressed || !IsValid(InteractionDataAsset))
+	{
+		return;
+	}
+	
+	if (InteractionDataAsset->SecondarySound.IsValid())
+	{
+		UGameplayStatics::SpawnSoundAttached(InteractionDataAsset->SecondarySound.Get(), this);
 	}
 }
 
@@ -111,48 +145,56 @@ void UVrCoreLever::OnRep_Trigger()
 
 void UVrCoreLever::OnRep_PrimaryButton()
 {
-	if (bPrimaryButtonPressed)
-	{
-		PrimaryPressTime = GetWorld()->GetTimeSeconds();
-		GetWorld()->GetTimerManager().SetTimer(PrimaryTimerHandle, this, &UVrCoreLever::PrimaryLongPress, LongPressTimeThreshold);
-	}
-	else
-	{
-		GetWorld()->GetTimerManager().ClearTimer(PrimaryTimerHandle);
+	OnPrimary.Broadcast(bPrimaryButtonPressed);
 
-		if (GetWorld()->GetTimeSeconds() - PrimaryPressTime > LongPressTimeThreshold)
-		{
-			OnPrimaryLongPress.Broadcast(false);
-		}
-		else
-		{
-			OnPrimary.Broadcast(true);
-			OnPrimary.Broadcast(false);
-		}
-	}
+	// if (bPrimaryButtonPressed)
+	// {
+	// 	PrimaryPressTime = GetWorld()->GetTimeSeconds();
+	// 	GetWorld()->GetTimerManager().SetTimer(PrimaryTimerHandle, this, &UVrCoreLever::PrimaryLongPress, LongPressTimeThreshold);
+	// }
+	// else
+	// {
+	// 	GetWorld()->GetTimerManager().ClearTimer(PrimaryTimerHandle);
+	//
+	// 	const float GameTimeSeconds = GetWorld()->GetTimeSeconds();
+	// 	const float TimeSincePress = GameTimeSeconds - PrimaryPressTime;
+	// 	if (TimeSincePress > LongPressTimeThreshold)
+	// 	{
+	// 		OnPrimaryLongPress.Broadcast(false);
+	// 	}
+	// 	else
+	// 	{
+	// 		OnPrimary.Broadcast(true);
+	// 		// OnPrimary.Broadcast(false);
+	// 	}
+	// }
 }
 
 void UVrCoreLever::OnRep_SecondaryButton()
 {
-	if (bSecondaryButtonPressed)
-	{
-		SecondaryPressTime = GetWorld()->GetTimeSeconds();
-		GetWorld()->GetTimerManager().SetTimer(SecondaryTimerHandle, this, &UVrCoreLever::SecondaryLongPress, LongPressTimeThreshold);
-	}
-	else
-	{
-		GetWorld()->GetTimerManager().ClearTimer(SecondaryTimerHandle);
-
-		if (GetWorld()->GetTimeSeconds() - SecondaryPressTime > LongPressTimeThreshold)
-		{
-			OnSecondaryLongPress.Broadcast(false);
-		}
-		else
-		{
-			OnSecondary.Broadcast(true);
-			OnSecondary.Broadcast(false);
-		}
-	}
+	OnSecondary.Broadcast(bSecondaryButtonPressed);
+	//
+	// if (bSecondaryButtonPressed)
+	// {
+	// 	SecondaryPressTime = GetWorld()->GetTimeSeconds();
+	// 	GetWorld()->GetTimerManager().SetTimer(SecondaryTimerHandle, this, &UVrCoreLever::SecondaryLongPress, LongPressTimeThreshold);
+	// }
+	// else
+	// {
+	// 	GetWorld()->GetTimerManager().ClearTimer(SecondaryTimerHandle);
+	//
+	// 	const float GameTimeSeconds = GetWorld()->GetTimeSeconds();
+	// 	const float TimeSincePress = GameTimeSeconds - SecondaryPressTime;
+	// 	if (TimeSincePress > SecondaryPressTime)
+	// 	{
+	// 		OnSecondaryLongPress.Broadcast(false);
+	// 	}
+	// 	else
+	// 	{
+	// 		OnSecondary.Broadcast(true);
+	// 		// OnSecondary.Broadcast(false);
+	// 	}
+	// }
 }
 
 void UVrCoreLever::OnRep_ThumbstickPress()
@@ -175,6 +217,12 @@ void UVrCoreLever::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLi
 	DOREPLIFETIME(UVrCoreLever, bSecondaryButtonPressed);
 	DOREPLIFETIME(UVrCoreLever, bThumbstickPressed);
 	DOREPLIFETIME(UVrCoreLever, ThumbstickAxis);
+}
+
+void UVrCoreLever::ToggleSwitch()
+{
+	ToggleState = !ToggleState;
+	OnLeverToggle.Broadcast(ToggleState);
 }
 
 void UVrCoreLever::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -217,12 +265,8 @@ void UVrCoreLever::EndPlay(EEndPlayReason::Type Reason)
 	}
 }
 
-void UVrCoreLever::BeginPlay()
+void UVrCoreLever::SetupScripts()
 {
-	// Call the base class 
-	Super::BeginPlay();
-
-	// Call all grip scripts begin play events so they can perform any needed logic
 	for (UVRGripScriptBase* Script : GripLogicScripts)
 	{
 		if (Script)
@@ -230,6 +274,45 @@ void UVrCoreLever::BeginPlay()
 			Script->BeginPlay(this);
 		}
 	}
+}
+
+void UVrCoreLever::SetupSounds()
+{
+	if (!IsValid(InteractionDataAsset))
+	{
+		return;
+	}
+	
+	// Load async assets
+	TArray<FSoftObjectPath> ObjectsToLoad;
+	const FSoftObjectPath& PrimarySoundPath = InteractionDataAsset->PrimarySound.ToSoftObjectPath();
+	if (PrimarySoundPath.IsValid())
+	{
+		ObjectsToLoad.Add(PrimarySoundPath);
+	}
+	const FSoftObjectPath& SecondarySoundPath = InteractionDataAsset->SecondarySound.ToSoftObjectPath();
+	if (SecondarySoundPath.IsValid())
+	{
+		ObjectsToLoad.Add(SecondarySoundPath);
+	}
+	const FSoftObjectPath& TriggerSoundPath = InteractionDataAsset->TriggerSound.ToSoftObjectPath();
+	if (TriggerSoundPath.IsValid())
+	{
+		ObjectsToLoad.Add(TriggerSoundPath);
+	}
+
+	FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+	Streamable.RequestAsyncLoad(ObjectsToLoad);
+}
+
+void UVrCoreLever::BeginPlay()
+{
+	// Call the base class 
+	Super::BeginPlay();
+	
+	SetupScripts();
+
+	SetupSounds();
 
 	bOriginalReplicatesMovement = bReplicateMovement;
 }

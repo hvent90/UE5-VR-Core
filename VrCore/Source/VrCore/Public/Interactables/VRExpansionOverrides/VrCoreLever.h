@@ -3,10 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "VrCoreTypes.h"
 #include "Interactables/VrCoreInteractableInterface.h"
 #include "Interactibles/VRLeverComponent.h"
 #include "GripScripts/VRGripScriptBase.h"
 #include "VrCoreLever.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLeverToggle, bool, bToggled);
+
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
 class VRCORE_API UVrCoreLever : public UVRLeverComponent, public IVrCoreInteractableInterface
@@ -22,6 +26,16 @@ public:
 
 	UPROPERTY(EditAnywhere, Replicated, BlueprintReadWrite, Category = "VRGripInterface")
 	bool bReplicateGripScripts;
+
+	/**
+	 * @brief Generic behavior that can be applied to anything.
+	 * In the case of the Beagle, it switches the seat controller between MFD and Weapons
+	 */
+	UFUNCTION(BlueprintCallable, Category = "VrCore")
+	virtual void ToggleSwitch();
+	bool ToggleState = false;
+	
+	FOnLeverToggle OnLeverToggle;
 
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
 	virtual bool ReplicateSubobjects(UActorChannel* Channel, class FOutBunch *Bunch, FReplicationFlags *RepFlags) override;
@@ -79,6 +93,13 @@ protected:
 	void SecondaryLongPress();
 
 private:
+	
+	/**
+	 * @brief Call all grip scripts begin play events so they can perform any needed logic
+	 */
+	void SetupScripts();
+	void SetupSounds();
+	
 	FTimerHandle PrimaryTimerHandle;
 	FTimerHandle SecondaryTimerHandle;
 	

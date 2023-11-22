@@ -28,5 +28,8 @@ public:
 	void Eject(AActor* WakefulPerson, USceneComponent* Seat, FVector _ExitLocation, FRotator _ExitRotation);
 
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreSittableInterface")
+	void RecenterSeatedPosition();
+
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "VrCoreSittableInterface")
 	FVector GetInitialRelativeLocation();
 };

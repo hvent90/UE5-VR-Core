@@ -36,6 +36,9 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "VrCoreTooltipInteractionInterface")
 	void SetThumbstickAction(const FText& Text);
+
+	UFUNCTION(BlueprintNativeEvent, Category = "VrCoreTooltipInteractionInterface")
+	bool ShouldUseSimpleName(FText& OutName);
 };
 
 

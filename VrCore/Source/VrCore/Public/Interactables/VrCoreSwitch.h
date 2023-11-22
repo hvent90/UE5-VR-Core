@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "VrCoreInteractableInterface.h"
+#include "VrCoreInteractionTooltip.h"
 #include "Components/ActorComponent.h"
 #include "Interactibles/VRDialComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -13,7 +14,7 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSwitchStateChanged, bool, bSwitchActivation);
 
 UCLASS(ClassGroup=(VrCore), meta=(BlueprintSpawnableComponent))
-class VRCORE_API UVrCoreSwitch : public UVRDialComponent, public IVrCoreInteractableInterface
+class VRCORE_API UVrCoreSwitch : public UVRDialComponent, public IVrCoreInteractableInterface, public IVrCoreInteractionTooltipInterface
 {
 	GENERATED_BODY()
 
@@ -22,6 +23,8 @@ public:
 	UVrCoreSwitch(const FObjectInitializer& ObjectInitializer);
 
 	virtual void PostInitProperties() override;
+
+	virtual bool ShouldUseSimpleName_Implementation(FText& OutName) override;
 	
 	// Interactable interface
 	virtual UVrCoreInteractionDataAsset* GetTooltip_Implementation() override
@@ -51,6 +54,9 @@ public:
 	FOnSwitchStateChanged OnSwitchStateChanged;
 
 protected:
+	UPROPERTY(EditAnywhere, Category = "VrCore")
+	FText TooltipName;
+	
 	UPROPERTY(EditAnywhere, Category = "VrCore")
 	TObjectPtr<UVrCoreInteractionDataAsset> Tooltip;
 	

@@ -31,6 +31,12 @@ void UVrCoreSwitch::PostInitProperties()
 	// BaseMeshComponent->SetRelativeTransform(BaseMeshOffset);
 }
 
+bool UVrCoreSwitch::ShouldUseSimpleName_Implementation(FText& OutName)
+{
+	OutName = TooltipName;
+	return true;
+}
+
 void UVrCoreSwitch::ToggleSwitch()
 {
 	bSwitchActivated = !bSwitchActivated;

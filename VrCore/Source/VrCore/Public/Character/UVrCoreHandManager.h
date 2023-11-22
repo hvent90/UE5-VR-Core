@@ -11,6 +11,8 @@
 #include "Sound/SoundCue.h"
 #include "UVrCoreHandManager.generated.h"
 
+class UTextRenderComponent;
+
 DEFINE_LOG_CATEGORY_STATIC(LogHandManagerVisualLog, Log, All);
 
 USTRUCT(BlueprintType)
@@ -19,26 +21,31 @@ struct VRCORE_API FHandInteractable
 	GENERATED_BODY()
 	
 	UObject* Object;
-	UStaticMeshComponent* Mesh;
+	UMeshComponent* Mesh;
 	float Distance;
 	FTransform WorldTransform;
 
 	FHandInteractable() :
 		Object(nullptr), Mesh(nullptr), Distance(0), WorldTransform(FTransform()) {};
 
-	FHandInteractable(UObject* _Object, UStaticMeshComponent* _Mesh, float _Distance, FTransform _WorldTransform) :
+	FHandInteractable(UObject* _Object, UMeshComponent* _Mesh, float _Distance, FTransform _WorldTransform) :
 	 Object(_Object), Mesh(_Mesh), Distance(_Distance), WorldTransform(_WorldTransform) {};
 
 	bool Valid() const
 	{
 		return IsValid(Object);
 	}
+
+	friend bool operator==(const FHandInteractable& Lhs, const FHandInteractable& RHS)
+	{
+		return Lhs.Object == RHS.Object;
+	}
 };
 
 UENUM()
 enum EHandInteractableType
 {
-	None,
+	None_IDK,
 	NonGrippable,
 	Grippable
 };
@@ -105,6 +112,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	TEnumAsByte<ECollisionChannel> GripCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	TEnumAsByte<ECollisionChannel> InteractableCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
+
 	UPROPERTY(EditAnywhere, Category = "VR Core|Grip")
 	FName LeftHandForwardTraceSocket = "GripTrace_Left";
 	
@@ -142,10 +152,38 @@ public:
 	UHapticFeedbackEffect_Base* GripHaptic;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	UHapticFeedbackEffect_Base* ReleaseHaptic;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
+	UHapticFeedbackEffect_Base* OverlapHaptic;
 	/** This is mainly used for flicking switches */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core")
 	UHapticFeedbackEffect_Base* TriggerWithoutGripHaptic;
-	
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	FName RightBoneTooltip = "index_03_r";
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	FName LeftBoneTooltip = "index_03_l";
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	FVector FingerTooltipOffsetLocation = FVector(0, -3, 0);
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	FRotator FingerTooltipOffsetRotation = FRotator(90.000000, 241.992644,151.992645);
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	float FingerTooltipFontSize = 2.0f;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	TObjectPtr<class UMaterialInterface> SimpleTooltipTextMaterial;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "VR Core | Tooltip")
+	TObjectPtr<class UFont> Font;
+
+protected:
+	UPROPERTY()
+	UTextRenderComponent* LeftTextTooltip = nullptr;
+	UPROPERTY()
+	UTextRenderComponent* RightTextTooltip = nullptr;
+	UPROPERTY()
+	UObject* LeftHandSimpleTooltipSource = nullptr;
+	UPROPERTY()
+	UObject* RightHandSimpleTooltipSource = nullptr;
+
+public:
 
 	// Grip
 	bool AttemptGrip(UGripMotionControllerComponent* MotionController);
@@ -234,6 +272,11 @@ private:
 	bool IsServer() const;
 
 	void ApplyHandPose(UGripMotionControllerComponent* MotionController, USkeletalMeshComponent* Mesh, UHandSocketComponent* HandSocketComponent, const FBPActorGripInformation& GripInfo);
+
+	void TickSimpleTooltip() const;
+	void CleanupSimpleTooltip(UGripMotionControllerComponent* MotionController);
+	bool ShowSimpleTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable);
+
 	void ShowInteractionTooltip(UGripMotionControllerComponent* MotionController, UObject* Interactable);
 	void TeardownInteractableTooltip();
 };
